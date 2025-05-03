@@ -1,5 +1,5 @@
 // Create an application's connection to the core
-import createClient from '../client.js'
+import { createClient } from 'xy-websocket'
 
 export default ({ app_host_id }) =>
   async ({ hub, app }) => {
