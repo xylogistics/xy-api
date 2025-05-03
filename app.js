@@ -1,5 +1,5 @@
 // A structure to manage application and agent state
-export default global_ctx => {
+export default () => global_ctx => {
   const app_by_id = new Map()
 
   const create = async ({ app_id, auth_token, connect_url }) => {

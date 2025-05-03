@@ -25,11 +25,12 @@ class UnknownCall extends Error {
 }
 
 // This is a standin that represents an application's websocket server and translates to the app host server
-export default async ({ app }) => {
-  const agent_ws_shim = WebSocketShim()
-  app.call = agent_ws_shim.call
-  app.sendEvent = agent_ws_shim.sendEvent
-  return { agent_ws_shim }
-}
+export default () =>
+  async ({ app }) => {
+    const agent_ws_shim = WebSocketShim()
+    app.call = agent_ws_shim.call
+    app.sendEvent = agent_ws_shim.sendEvent
+    return { agent_ws_shim }
+  }
 
 export { UnknownCall }
