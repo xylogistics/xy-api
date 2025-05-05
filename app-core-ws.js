@@ -32,13 +32,14 @@ export default ({ app_host_id }) =>
         a.app_payload = result.payload
       }
       hub.emit('agents_assert', result.agents)
-      hub.emit(
-        'agents_connected',
-        result.agents.map(a => ({
-          agent_id: a.agent_id,
-          is_connected: app.agent_socket(a.agent_id)
-        }))
-      )
+      if (app.agent_socket)
+        hub.emit(
+          'agents_connected',
+          result.agents.map(a => ({
+            agent_id: a.agent_id,
+            is_connected: app.agent_socket(a.agent_id)
+          }))
+        )
     })
 
     const relay = (e1, e2) =>
