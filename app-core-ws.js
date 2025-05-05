@@ -19,8 +19,8 @@ export default ({ app_host_id }) =>
       console.log('Amtech Kiosk API Connected', app.app_id)
       hub.emit('connected')
       const result = await core_ws_client.call('/app/app_register', {})
-      hub.emit('config', result)
-      hub.emit('payload', result)
+      hub.emit('app_config', result)
+      hub.emit('app_payload', result)
       // Set app_host_id for ownership
       if (result.config.app_host_id != app_host_id)
         core_ws_client.call('/app/app_config', {
