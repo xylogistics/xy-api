@@ -325,6 +325,7 @@ export default () =>
         const types2 = await get_all()
         return type_defs.map(([name]) => types2.find(t => t.name === name))
       }
+      // TODO: add assert workers
     }
     return { xyapi }
   }

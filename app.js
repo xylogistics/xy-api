@@ -66,7 +66,8 @@ export default () => global_ctx => {
   return {
     app: {
       create,
-      app: id => app_by_id.get(id)
+      app: id => app_by_id.get(id),
+      all: () => Array.from(app_by_id.values())
     }
   }
 }
