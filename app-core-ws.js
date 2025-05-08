@@ -2,7 +2,7 @@
 import { createClient } from 'xy-websocket'
 
 export default ({ app_host_id }) =>
-  async ({ hub, app }) => {
+  async ({ app_name = 'XY App', hub, app }) => {
     console.log(`${app.app_id} connecting to ${app.connect_url}`)
     const core_ws_client = createClient({
       url: app.connect_url,
@@ -16,7 +16,7 @@ export default ({ app_host_id }) =>
     })
     app.core_ws_client = core_ws_client
     core_ws_client.on('connected', async () => {
-      console.log('Amtech Kiosk API Connected', app.app_id)
+      console.log(`${app_name} connected as ${app.app_id}`)
       hub.emit('connected')
       const result = await core_ws_client.call('/app/app_register', {})
       hub.emit('app_config', result)
