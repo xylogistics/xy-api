@@ -2,6 +2,8 @@
 
 A collection of APIs to write applications for XY Logistics.
 
+TODO: Make a plan to have agents and users connect to an app.
+
 ## xyapi
 
 ```javascript

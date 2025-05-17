@@ -15,6 +15,8 @@ class AlreadyConnected extends Error {
   }
 }
 
+let depreciatedNotified = false
+
 export default () =>
   async ({ agent_ws_shim, hub, app }) => {
     // Keep track of connected agents
@@ -25,7 +27,16 @@ export default () =>
     hub.on('agent disconnected', async ({ agent }) => {
       agentsocket_byid.delete(agent.agent_id)
     })
-    app.agent_socket = agent_id => agentsocket_byid.get(agent_id)
+    // TODO: Deprecated. Remove after upgrade.
+    app.agent_socket = agent_id => {
+      if (!depreciatedNotified) {
+        console.warn('app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.')
+        depreciatedNotified = true
+      }
+      return agentsocket_byid.get(agent_id)
+    }
+    app.socket_byagentid = agent_id => agentsocket_byid.get(agent_id)
+    app.sockets = () => Array.from(agentsocket_byid.values(), s => [...s]).flat()
 
     // Listen for events from the core and send them to the agent
     hub.on('app_config', async ({ config }) => {
@@ -78,9 +89,7 @@ export default () =>
       if (agentsocket_byid.has(agent_id)) throw new AlreadyConnected()
       const agent = app.agent(agent_id)
       hub.emit('agent connected', { agent, socket })
-      socket.on('close', () =>
-        hub.emit('agent disconnected', { agent, socket })
-      )
+      socket.on('close', () => hub.emit('agent disconnected', { agent, socket }))
       return { agent }
     })
   }
