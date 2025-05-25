@@ -45,14 +45,16 @@ export default ({ app_host_api, app_host_auth_token }) =>
           await app_host_ws_client.call('/app_host/app_host_register', {}),
         {
           startingDelay: 200,
-          numOfAttempts: 10,
+          numOfAttempts: Number.MAX_SAFE_INTEGER,
           maxDelay: 10000,
           retry: err => {
             console.error('Error on app host register', err)
-            return true
+            return app_host_ws_client.is_connected()
           }
         }
       )
+
+      console.log(`${app_name} registered as app host`)
 
       hub.on('shutdown', async () => {
         app_host_ws_client.close()

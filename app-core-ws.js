@@ -1,5 +1,6 @@
 // Create an application's connection to the core
 import { createClient } from 'xy-websocket'
+import { backOff } from 'exponential-backoff'
 
 export default ({ app_host_id }) =>
   async ({ app_name = 'XY App', hub, app }) => {
@@ -16,8 +17,19 @@ export default ({ app_host_id }) =>
     })
     app.core_ws_client = core_ws_client
     core_ws_client.on('connected', async () => {
-      console.log(`${app_name} connected as ${app.app_id}`)
-      const result = await core_ws_client.call('/app/app_register', {})
+      console.log(`${app_name} connected as ${app.app_id}, registering`)
+      const result = await backOff(
+        () => core_ws_client.call('/app/app_register', {}),
+        {
+          numOfAttempts: Number.MAX_SAFE_INTEGER,
+          maxDelay: 10000,
+          retry: e => {
+            console.error('Error on app register', e)
+            return core_ws_client.is_connected()
+          }
+        }
+      )
+      console.log(`${app_name} registered as ${result.config.name}`)
       hub.emit('connected')
       hub.emit('app_config', result)
       hub.emit('app_payload', result)
@@ -42,7 +54,8 @@ export default ({ app_host_id }) =>
         )
     })
 
-    const relay = (e1, e2) => core_ws_client.on(e1, params => hub.emit(e2, params))
+    const relay = (e1, e2) =>
+      core_ws_client.on(e1, params => hub.emit(e2, params))
 
     relay('/app/app_config', 'app_config')
     relay('/app/app_payload', 'app_payload')
