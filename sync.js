@@ -26,7 +26,10 @@ export default (ws, fn) => {
     picklinestatuses_byid: new Map(),
     picklinestatuses: [],
     picks_byid: new Map(),
-    picks_byname: {}
+    picks_byname: {},
+    locations: [],
+    locations_byid: new Map(),
+    location_byname: {}
   }
   const linkUnitsAndTasks = () => {
     for (const unit of results.units) unit.tasks = []
@@ -55,7 +58,8 @@ export default (ws, fn) => {
     orders_byname_bystatusids: {},
     pickstatuses_all: false,
     picklinestatuses_all: false,
-    picks_byname_bystatusids: {}
+    picks_byname_bystatusids: {},
+    location_byname_byexternalid: {}
   }
   const queryAgents = async plan => {
     const agent_byname = {}
@@ -276,6 +280,32 @@ export default (ws, fn) => {
     results.picks_byname = picks_byname
     results.picks = Array.from(picks_byid.values())
   }
+  const queryLocations = async plan => {
+    const location_byname = {}
+    const locations_byid = new Map()
+    const location_byname_byexternalid = Object.entries(
+      plan.location_byname_byexternalid ?? {}
+    )
+      .map(([key, location_external_id]) => ({
+        key,
+        location_external_id
+      }))
+      .filter(({ location_external_id }) => location_external_id != null)
+    if (location_byname_byexternalid.length > 0) {
+      const results = await ws.call(
+        '/location/locations_get',
+        location_byname_byexternalid
+      )
+      for (const [i, c] of results.entries()) {
+        if (c == null) continue
+        location_byname[location_byname_byexternalid[i].key] = c
+        locations_byid.set(c.location_id, c)
+      }
+    }
+    results.location_byname = location_byname
+    results.locations_byid = locations_byid
+    results.locations = Array.from(locations_byid.values())
+  }
   const query = async changesRequested => {
     if (isquerying) return
     isquerying = true
@@ -313,7 +343,10 @@ export default (ws, fn) => {
         planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
         planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
         JSON.stringify(plan.picks_byname_bystatusids) !==
-          JSON.stringify(planExecuted.picks_byname_bystatusids)
+          JSON.stringify(planExecuted.picks_byname_bystatusids),
+      location:
+        JSON.stringify(plan.location_byname_byexternalid) !==
+        JSON.stringify(planExecuted.location_byname_byexternalid)
     }
     const isChange =
       Object.values(changesDetected).some(v => v) ||
@@ -375,6 +408,12 @@ export default (ws, fn) => {
       hub.emit('picks_byname', results.picks_byname)
       hub.emit('picks', results.picks)
     }
+    if (changesRequested.location || changesDetected.location) {
+      await queryLocations(plan)
+      hub.emit('location_byname', results.location_byname)
+      hub.emit('locations_byid', results.locations_byid)
+      hub.emit('locations', results.locations)
+    }
     planExecuted = plan
     isquerying = false
     hub.emit('query', results)
@@ -386,6 +425,7 @@ export default (ws, fn) => {
       active_unit_ids: unit_ids
     })
     await ws.send('/outbound_order/subscribe', {})
+    // await ws.send('/location/subscribe', { location_ids })
     queryLater({})
   }
   const queryLater = changes => {
@@ -435,6 +475,7 @@ export default (ws, fn) => {
   ws.on('/picklinestatus/picklinestatus_assert', () =>
     queryLater({ pick: true })
   )
+  ws.on('/location/locations_assert', () => queryLater({ location: true }))
 
   const api = {
     on: hub.on,
@@ -449,7 +490,8 @@ export default (ws, fn) => {
         unit: true,
         task: true,
         order: true,
-        pick: true
+        pick: true,
+        location: true
       }),
     close: () => {},
     unit_sanitise: u => {
