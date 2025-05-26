@@ -29,7 +29,9 @@ export default (ws, fn) => {
     picks_byname: {},
     locations: [],
     locations_byid: new Map(),
-    location_byname: {}
+    location_byname: {},
+    items: [],
+    items_byid: new Map()
   }
   const linkUnitsAndTasks = () => {
     for (const unit of results.units) unit.tasks = []
@@ -59,7 +61,9 @@ export default (ws, fn) => {
     pickstatuses_all: false,
     picklinestatuses_all: false,
     picks_byname_bystatusids: {},
-    location_byname_byexternalid: {}
+    location_byname_byexternalid: {},
+    items_byexternalid: [],
+    items_byid: []
   }
   const queryAgents = async plan => {
     const agent_byname = {}
@@ -306,6 +310,21 @@ export default (ws, fn) => {
     results.locations_byid = locations_byid
     results.locations = Array.from(locations_byid.values())
   }
+  const queryItems = async plan => {
+    const items_byid = new Map()
+    if (plan.items_byid?.length > 0) {
+      const items = await ws.call(
+        '/item/items_query',
+        plan.items_byid.map(item_id => ({ item_id }))
+      )
+      for (const item of items) {
+        if (items_byid.has(item.item_id)) continue
+        items_byid.set(item.item_id, item)
+      }
+    }
+    results.items_byid = items_byid
+    results.items = Array.from(items_byid.values())
+  }
   const query = async changesRequested => {
     if (isquerying) return
     isquerying = true
@@ -346,7 +365,12 @@ export default (ws, fn) => {
           JSON.stringify(planExecuted.picks_byname_bystatusids),
       location:
         JSON.stringify(plan.location_byname_byexternalid) !==
-        JSON.stringify(planExecuted.location_byname_byexternalid)
+        JSON.stringify(planExecuted.location_byname_byexternalid),
+      item:
+        JSON.stringify(plan.items_byexternalid) !==
+          JSON.stringify(planExecuted.items_byexternalid) ||
+        JSON.stringify(plan.items_byid) !==
+          JSON.stringify(planExecuted.items_byid)
     }
     const isChange =
       Object.values(changesDetected).some(v => v) ||
@@ -414,6 +438,11 @@ export default (ws, fn) => {
       hub.emit('locations_byid', results.locations_byid)
       hub.emit('locations', results.locations)
     }
+    if (changesRequested.item || changesDetected.item) {
+      await queryItems(plan)
+      hub.emit('items_byid', results.items_byid)
+      hub.emit('items', results.items)
+    }
     planExecuted = plan
     isquerying = false
     hub.emit('query', results)
@@ -424,8 +453,12 @@ export default (ws, fn) => {
       task_ids: results.tasks.map(t => t.task_id),
       active_unit_ids: unit_ids
     })
-    await ws.send('/outbound_order/subscribe', {})
-    // await ws.send('/location/subscribe', { location_ids })
+    const order_ids = Array.from(results.orders_byid.keys())
+    await ws.send('/outbound_order/subscribe', { order_ids })
+    const location_ids = Array.from(results.locations_byid.keys())
+    await ws.send('/location/subscribe', { location_ids })
+    const item_ids = Array.from(results.items_byid.keys())
+    await ws.send('/item/subscribe', { item_ids })
     queryLater({})
   }
   const queryLater = changes => {
@@ -457,6 +490,7 @@ export default (ws, fn) => {
   ws.on('/exe/tasks_app_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_core_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_payload', () => queryLater({ task: true }))
+
   ws.on('/outbound_order/outbound_order_assert', () =>
     queryLater({ order: true })
   )
@@ -476,6 +510,9 @@ export default (ws, fn) => {
     queryLater({ pick: true })
   )
   ws.on('/location/locations_assert', () => queryLater({ location: true }))
+
+  ws.on('/item/items_assert', () => queryLater({ item: true }))
+  ws.on('/item/barcodes_assert', () => queryLater({ item: true }))
 
   const api = {
     on: hub.on,
