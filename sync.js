@@ -14,7 +14,19 @@ export default (ws, fn) => {
     units_byname: {},
     tasks: [],
     tasks_byid: new Map(),
-    tasks_byname: {}
+    tasks_byname: {},
+    orderstatuses_byid: new Map(),
+    orderstatuses: [],
+    orderlinestatuses_byid: new Map(),
+    orderlinestatuses: [],
+    orders_byid: new Map(),
+    orders_byname: {},
+    pickstatuses_byid: new Map(),
+    pickstatuses: [],
+    picklinestatuses_byid: new Map(),
+    picklinestatuses: [],
+    picks_byid: new Map(),
+    picks_byname: {}
   }
   const linkUnitsAndTasks = () => {
     for (const unit of results.units) unit.tasks = []
@@ -37,7 +49,13 @@ export default (ws, fn) => {
     units_byid: [],
     tasks_byname_byagentid: {},
     tasks_byactiveunitid: [],
-    tasks_byid: []
+    tasks_byid: [],
+    orderstatuses_all: false,
+    orderlinestatuses_all: false,
+    orders_byname_bystatusids: {},
+    pickstatuses_all: false,
+    picklinestatuses_all: false,
+    picks_byname_bystatusids: {}
   }
   const queryAgents = async plan => {
     const agent_byname = {}
@@ -184,6 +202,80 @@ export default (ws, fn) => {
     results.tasks_byname = tasks_byname
     results.tasks = Array.from(tasks_byid.values())
   }
+  const queryOrders = async plan => {
+    const orderstatuses_byid = new Map()
+    if (plan.orderstatuses_all) {
+      const orderstatuses = await ws.call(
+        '/outbound_orderstatus/outbound_orderstatus_qry'
+      )
+      for (const s of orderstatuses) orderstatuses_byid.set(s.orderstatus_id, s)
+    }
+    results.orderstatuses_byid = orderstatuses_byid
+    results.orderstatuses = Array.from(orderstatuses_byid.values())
+
+    const orderlinestatuses_byid = new Map()
+    if (plan.orderlinestatuses_all) {
+      const orderlinestatuses = await ws.call(
+        '/outbound_orderlinestatus/outbound_orderlinestatus_qry'
+      )
+      for (const s of orderlinestatuses)
+        orderlinestatuses_byid.set(s.orderlinestatus_id, s)
+    }
+    results.orderlinestatuses_byid = orderlinestatuses_byid
+    results.orderlinestatuses = Array.from(orderlinestatuses_byid.values())
+
+    const orders_byid = new Map()
+    const orders_byname = {}
+    for (const [key, orderstatus_ids] of Object.entries(
+      plan.orders_byname_bystatusids ?? {}
+    )) {
+      if (orderstatus_ids == null || orderstatus_ids.length == 0) continue
+      const orders = await ws.call('/outbound_order/outbound_order_qry', {
+        orderstatus_ids
+      })
+      for (const order of orders) orders_byid.set(order.order_id, order)
+      orders_byname[key] = orders
+    }
+    results.orders_byid = orders_byid
+    results.orders_byname = orders_byname
+    results.orders = Array.from(orders_byid.values())
+  }
+  const queryPicks = async plan => {
+    const pickstatuses_byid = new Map()
+    if (plan.pickstatuses_all) {
+      const pickstatuses = await ws.call('/pickstatus/pickstatus_qry')
+      for (const s of pickstatuses) pickstatuses_byid.set(s.pickstatus_id, s)
+    }
+    results.pickstatuses_byid = pickstatuses_byid
+    results.pickstatuses = Array.from(pickstatuses_byid.values())
+
+    const picklinestatuses_byid = new Map()
+    if (plan.picklinestatuses_all) {
+      const picklinestatuses = await ws.call(
+        '/picklinestatus/picklinestatus_qry'
+      )
+      for (const s of picklinestatuses)
+        picklinestatuses_byid.set(s.picklinestatus_id, s)
+    }
+    results.picklinestatuses_byid = picklinestatuses_byid
+    results.picklinestatuses = Array.from(picklinestatuses_byid.values())
+
+    const picks_byid = new Map()
+    const picks_byname = {}
+    for (const [key, pickstatus_ids] of Object.entries(
+      plan.picks_byname_bystatusids ?? {}
+    )) {
+      if (pickstatus_ids == null || pickstatus_ids.length == 0) continue
+      const picks = await ws.call('/pick/pick_qry', {
+        pickstatus_ids
+      })
+      for (const pick of picks) picks_byid.set(pick.pick_id, pick)
+      picks_byname[key] = picks
+    }
+    results.picks_byid = picks_byid
+    results.picks_byname = picks_byname
+    results.picks = Array.from(picks_byid.values())
+  }
   const query = async changesRequested => {
     if (isquerying) return
     isquerying = true
@@ -211,7 +303,17 @@ export default (ws, fn) => {
         JSON.stringify(plan.tasks_byid) !==
           JSON.stringify(planExecuted.tasks_byid) ||
         JSON.stringify(plan.tasks_byactiveunitid) !==
-          JSON.stringify(planExecuted.tasks_byactiveunitid)
+          JSON.stringify(planExecuted.tasks_byactiveunitid),
+      order:
+        planExecuted.orderstatuses_all !== plan.orderstatuses_all ||
+        planExecuted.orderlinestatuses_all !== plan.orderlinestatuses_all ||
+        JSON.stringify(plan.orders_byname_bystatusids) !==
+          JSON.stringify(planExecuted.orders_byname_bystatusids),
+      pick:
+        planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
+        planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
+        JSON.stringify(plan.picks_byname_bystatusids) !==
+          JSON.stringify(planExecuted.picks_byname_bystatusids)
     }
     const isChange =
       Object.values(changesDetected).some(v => v) ||
@@ -243,13 +345,35 @@ export default (ws, fn) => {
       // If we are not querying for tasks, refresh units
       if (!changesRequested.task && !changesDetected.task) linkUnitsAndTasks()
       hub.emit('units_byname', results.units_byname)
+      hub.emit('units_byid', results.units_byid)
       hub.emit('units', results.units)
     }
     if (changesRequested.task || changesDetected.task) {
       await queryTasks(plan)
       linkUnitsAndTasks()
       hub.emit('tasks_byname', results.tasks_byname)
+      hub.emit('tasks_byid', results.tasks_byid)
       hub.emit('tasks', results.tasks)
+    }
+    if (changesRequested.order || changesDetected.order) {
+      await queryOrders(plan)
+      hub.emit('orderstatuses_byid', results.orderstatuses_byid)
+      hub.emit('orderstatuses', results.orderstatuses)
+      hub.emit('orderlinestatuses_byid', results.orderlinestatuses_byid)
+      hub.emit('orderlinestatuses', results.orderlinestatuses)
+      hub.emit('orders_byid', results.orders_byid)
+      hub.emit('orders_byname', results.orders_byname)
+      hub.emit('orders', results.orders)
+    }
+    if (changesRequested.pick || changesDetected.pick) {
+      await queryPicks(plan)
+      hub.emit('pickstatuses_byid', results.pickstatuses_byid)
+      hub.emit('pickstatuses', results.pickstatuses)
+      hub.emit('picklinestatuses_byid', results.picklinestatuses_byid)
+      hub.emit('picklinestatuses', results.picklinestatuses)
+      hub.emit('picks_byid', results.picks_byid)
+      hub.emit('picks_byname', results.picks_byname)
+      hub.emit('picks', results.picks)
     }
     planExecuted = plan
     isquerying = false
@@ -261,6 +385,7 @@ export default (ws, fn) => {
       task_ids: results.tasks.map(t => t.task_id),
       active_unit_ids: unit_ids
     })
+    await ws.send('/outbound_order/subscribe', {})
     queryLater({})
   }
   const queryLater = changes => {
@@ -292,6 +417,25 @@ export default (ws, fn) => {
   ws.on('/exe/tasks_app_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_core_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_payload', () => queryLater({ task: true }))
+  ws.on('/outbound_order/outbound_order_assert', () =>
+    queryLater({ order: true })
+  )
+  ws.on('/outbound_order/outbound_orderline_assert', () =>
+    queryLater({ order: true })
+  )
+  ws.on('/outbound_orderstatus/outbound_orderstatus_assert', () =>
+    queryLater({ order: true })
+  )
+  ws.on('/outbound_orderlinestatus/outbound_orderlinestatus_assert', () =>
+    queryLater({ order: true })
+  )
+  ws.on('/pick/pick_assert', () => queryLater({ pick: true }))
+  ws.on('/pickline/pickline_assert', () => queryLater({ pick: true }))
+  ws.on('/pickstatus/pickstatus_assert', () => queryLater({ pick: true }))
+  ws.on('/picklinestatus/picklinestatus_assert', () =>
+    queryLater({ pick: true })
+  )
+
   const api = {
     on: hub.on,
     off: hub.off,
@@ -303,7 +447,9 @@ export default (ws, fn) => {
         component: true,
         schema: true,
         unit: true,
-        task: true
+        task: true,
+        order: true,
+        pick: true
       }),
     close: () => {},
     unit_sanitise: u => {
