@@ -2,6 +2,7 @@ import { Hub } from './hub.js'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
+// TODO: Change unit_byexternalid to unit_byname_byexternalid
 export default (ws, fn) => {
   const hub = Hub()
   let isquerying = false
@@ -528,7 +529,8 @@ export default (ws, fn) => {
         task: true,
         order: true,
         pick: true,
-        location: true
+        location: true,
+        item: true
       }),
     close: () => {},
     unit_sanitise: u => {
