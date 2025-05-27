@@ -324,6 +324,13 @@ export default () =>
         )
         const types2 = await get_all()
         return type_defs.map(([name]) => types2.find(t => t.name === name))
+      },
+      track: params => {
+        try {
+          core_ws_client.call('/analytics/track', params)
+        } catch (e) {
+          console.error('Track failed', e)
+        }
       }
       // TODO: add assert workers
     }
