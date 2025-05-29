@@ -38,8 +38,7 @@ export default () =>
       return agentsocket_byid.get(agent_id)
     }
     app.socket_byagentid = agent_id => agentsocket_byid.get(agent_id)
-    app.sockets = () =>
-      Array.from(agentsocket_byid.values(), s => [...s]).flat()
+    app.sockets = () => Array.from(agentsocket_byid.values())
 
     // Listen for events from the core and send them to the agent
     hub.on('app_config', async ({ config }) => {
