@@ -30,53 +30,56 @@ export default () =>
     // TODO: Deprecated. Remove after upgrade.
     app.agent_socket = agent_id => {
       if (!depreciatedNotified) {
-        console.warn('app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.')
+        console.warn(
+          'app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.'
+        )
         depreciatedNotified = true
       }
       return agentsocket_byid.get(agent_id)
     }
     app.socket_byagentid = agent_id => agentsocket_byid.get(agent_id)
-    app.sockets = () => Array.from(agentsocket_byid.values(), s => [...s]).flat()
+    app.sockets = () =>
+      Array.from(agentsocket_byid.values(), s => [...s]).flat()
 
     // Listen for events from the core and send them to the agent
     hub.on('app_config', async ({ config }) => {
       for (const { agent_id } of app.agents()) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('app_config', { config })
       }
     })
     hub.on('app_payload', async ({ payload }) => {
       for (const { agent_id } of app.agents()) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('app_payload', { payload })
       }
     })
     hub.on('agents_config', async agents => {
       for (const { agent_id, config } of agents) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('agent_config', { config })
       }
     })
     hub.on('agents_payload', async agents => {
       for (const { agent_id, payload } of agents) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('agent_payload', { payload })
       }
     })
     hub.on('agents_app_status', async agents => {
       for (const { agent_id, app_status } of agents) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('agent_app_status', { app_status })
       }
     })
     hub.on('agents_core_status', async agents => {
       for (const { agent_id, core_status } of agents) {
-        const socket = app.agent_socket(agent_id)
+        const socket = app.socket_byagentid(agent_id)
         if (!socket) continue
         socket.sendEvent('agent_core_status', { core_status })
       }
@@ -89,7 +92,9 @@ export default () =>
       if (agentsocket_byid.has(agent_id)) throw new AlreadyConnected()
       const agent = app.agent(agent_id)
       hub.emit('agent connected', { agent, socket })
-      socket.on('close', () => hub.emit('agent disconnected', { agent, socket }))
+      socket.on('close', () =>
+        hub.emit('agent disconnected', { agent, socket })
+      )
       return { agent }
     })
   }

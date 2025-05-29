@@ -44,12 +44,12 @@ export default ({ app_host_id }) =>
         a.app_payload = result.payload
       }
       hub.emit('agents_assert', result.agents)
-      if (app.agent_socket)
+      if (app.socket_byagentid)
         hub.emit(
           'agents_connected',
           result.agents.map(a => ({
             agent_id: a.agent_id,
-            is_connected: app.agent_socket(a.agent_id)
+            is_connected: app.socket_byagentid(a.agent_id)
           }))
         )
     })

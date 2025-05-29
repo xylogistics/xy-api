@@ -51,6 +51,7 @@ export default (ws, fn) => {
     component_byname_byexternalid: {},
     schemas_byname_bycomponentid: {},
     units_byname_byschemaids: {},
+    units_byname_byids: {},
     units_byexternalid: [],
     units_byid: [],
     tasks_byname_byagentid: {},
@@ -147,6 +148,17 @@ export default (ws, fn) => {
       const units = await ws.call('/unit/units_get_for_schema_ids', {
         schema_ids
       })
+      for (const unit of units) units_byid.set(unit.unit_id, unit)
+      units_byname[key] = units
+    }
+    for (const [key, unit_ids] of Object.entries(
+      plan.units_byname_byids ?? {}
+    )) {
+      if (unit_ids == null) continue
+      const units = await ws.call(
+        '/unit/units_get',
+        unit_ids.map(unit_id => ({ unit_id }))
+      )
       for (const unit of units) units_byid.set(unit.unit_id, unit)
       units_byname[key] = units
     }
@@ -343,6 +355,8 @@ export default (ws, fn) => {
       unit:
         JSON.stringify(plan.units_byname_byschemaids) !==
           JSON.stringify(planExecuted.units_byname_byschemaids) ||
+        JSON.stringify(plan.units_byname_byids) !==
+          JSON.stringify(planExecuted.units_byname_byids) ||
         JSON.stringify(plan.units_byexternalid) !==
           JSON.stringify(planExecuted.units_byexternalid) ||
         JSON.stringify(plan.units_byid) !==
