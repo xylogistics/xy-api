@@ -4,8 +4,7 @@ const Hub = initial => {
   if (initial) for (let e of Object.keys(initial)) listeners[e] = [initial[e]]
 
   const emit = (e, ...args) => {
-    if (listeners[e] == null)
-      return Promise.all(unhandled.slice().map(fn => fn(e, ...args)))
+    if (listeners[e] == null) return Promise.all(unhandled.slice().map(fn => fn(e, ...args)))
     return Promise.all(listeners[e].slice().map(fn => fn(...args)))
   }
 
@@ -30,7 +29,7 @@ const Hub = initial => {
       res.unhandled((e, ...args) => emit(e, ...args))
       return res
     },
-    create: (initial) => Hub(initial),
+    create: initial => Hub(initial),
     effect: fn => () => {
       const listeners = []
       const fin = fn({
@@ -41,8 +40,7 @@ const Hub = initial => {
         }
       })
       return () => {
-        for (const [e, fn] of listeners)
-          res.off(e, fn)
+        for (const [e, fn] of listeners) res.off(e, fn)
         if (fin) fin()
       }
     }
@@ -51,4 +49,5 @@ const Hub = initial => {
   return res
 }
 
+export default () => ({ hub: Hub() })
 export { Hub }
