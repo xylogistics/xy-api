@@ -69,19 +69,14 @@ export default (ws, fn) => {
   }
   const queryAgents = async plan => {
     const agent_byname = {}
-    const agent_byname_byexternalid = Object.entries(
-      plan.agent_byname_byexternalid ?? {}
-    )
+    const agent_byname_byexternalid = Object.entries(plan.agent_byname_byexternalid ?? {})
       .map(([key, agent_external_id]) => ({
         key,
         agent_external_id
       }))
       .filter(({ agent_external_id }) => agent_external_id != null)
     if (agent_byname_byexternalid.length > 0) {
-      const results = await ws.call(
-        '/app/agents_get',
-        agent_byname_byexternalid
-      )
+      const results = await ws.call('/app/agents_get', agent_byname_byexternalid)
       for (const [i, c] of results.entries()) {
         if (c == null) continue
         agent_byname[agent_byname_byexternalid[i].key] = c
@@ -93,36 +88,28 @@ export default (ws, fn) => {
   }
   const queryComponents = async plan => {
     const component_byname = {}
-    const component_byname_byexternalid = Object.entries(
-      plan.component_byname_byexternalid ?? {}
-    )
+    const component_byname_byexternalid = Object.entries(plan.component_byname_byexternalid ?? {})
       .map(([key, component_external_id]) => ({
         key,
         component_external_id
       }))
       .filter(({ component_external_id }) => component_external_id != null)
     if (component_byname_byexternalid.length > 0) {
-      const results = await ws.call(
-        '/schema/components_get',
-        component_byname_byexternalid
-      )
+      const results = await ws.call('/schema/components_get', component_byname_byexternalid)
       for (const [i, c] of results.entries()) {
         if (c == null) continue
         component_byname[component_byname_byexternalid[i].key] = c
       }
     }
-    if (
-      JSON.stringify(component_byname) !==
-      JSON.stringify(results.component_byname)
-    ) {
+    if (JSON.stringify(component_byname) !== JSON.stringify(results.component_byname)) {
       results.component_byname = component_byname
     }
   }
   const querySchemas = async plan => {
     const schemas_byname = {}
-    const schemas_byname_bycomponentid = Object.entries(
-      plan.schemas_byname_bycomponentid ?? {}
-    ).filter(([_, component_id]) => component_id != null)
+    const schemas_byname_bycomponentid = Object.entries(plan.schemas_byname_bycomponentid ?? {}).filter(
+      ([_, component_id]) => component_id != null
+    )
     if (schemas_byname_bycomponentid.length > 0) {
       for (const [key, component_id] of schemas_byname_bycomponentid) {
         const results = await ws.call('/schema/schemas_with_component', {
@@ -132,18 +119,14 @@ export default (ws, fn) => {
         schemas_byname[key] = results
       }
     }
-    if (
-      JSON.stringify(schemas_byname) !== JSON.stringify(results.schemas_byname)
-    ) {
+    if (JSON.stringify(schemas_byname) !== JSON.stringify(results.schemas_byname)) {
       results.schemas_byname = schemas_byname
     }
   }
   const queryUnits = async plan => {
     const units_byid = new Map()
     const units_byname = {}
-    for (const [key, schema_ids] of Object.entries(
-      plan.units_byname_byschemaids ?? {}
-    )) {
+    for (const [key, schema_ids] of Object.entries(plan.units_byname_byschemaids ?? {})) {
       if (schema_ids == null) continue
       const units = await ws.call('/unit/units_get_for_schema_ids', {
         schema_ids
@@ -151,9 +134,7 @@ export default (ws, fn) => {
       for (const unit of units) units_byid.set(unit.unit_id, unit)
       units_byname[key] = units
     }
-    for (const [key, unit_ids] of Object.entries(
-      plan.units_byname_byids ?? {}
-    )) {
+    for (const [key, unit_ids] of Object.entries(plan.units_byname_byids ?? {})) {
       if (unit_ids == null) continue
       const units = await ws.call(
         '/unit/units_get',
@@ -163,8 +144,7 @@ export default (ws, fn) => {
       units_byname[key] = units
     }
     const query_params = []
-    for (const unit_external_id of plan.units_byexternalid ?? [])
-      query_params.push({ unit_external_id })
+    for (const unit_external_id of plan.units_byexternalid ?? []) query_params.push({ unit_external_id })
     for (const unit_id of plan.units_byid ?? []) query_params.push({ unit_id })
     if (query_params.length > 0) {
       const units = await ws.call('/unit/units_get_all_ctx', query_params)
@@ -188,21 +168,16 @@ export default (ws, fn) => {
   const queryTasks = async plan => {
     const tasks_byid = new Map()
     const tasks_byname = {}
-    for (const [key, agent_id] of Object.entries(
-      plan.tasks_byname_byagentid ?? {}
-    )) {
+    for (const [key, agent_id] of Object.entries(plan.tasks_byname_byagentid ?? {})) {
       if (agent_id == null) continue
       const tasks = await ws.call('/exe/tasks_all_byagent', { agent_id })
       for (const task of tasks) tasks_byid.set(task.task_id, task)
       tasks_byname[key] = tasks
     }
     if ((plan.tasks_byactiveunitid || []).length > 0) {
-      const tasks_activeunit = await ws.call(
-        '/exe/tasks_all_byactiveunit_ids',
-        {
-          unit_ids: plan.tasks_byactiveunitid
-        }
-      )
+      const tasks_activeunit = await ws.call('/exe/tasks_all_byactiveunit_ids', {
+        unit_ids: plan.tasks_byactiveunitid
+      })
       for (const task of tasks_activeunit) {
         if (tasks_byid.has(task.task_id)) continue
         tasks_byid.set(task.task_id, task)
@@ -226,9 +201,7 @@ export default (ws, fn) => {
   const queryOrders = async plan => {
     const orderstatuses_byid = new Map()
     if (plan.orderstatuses_all) {
-      const orderstatuses = await ws.call(
-        '/outbound_orderstatus/outbound_orderstatus_qry'
-      )
+      const orderstatuses = await ws.call('/outbound_orderstatus/outbound_orderstatus_qry')
       for (const s of orderstatuses) orderstatuses_byid.set(s.orderstatus_id, s)
     }
     results.orderstatuses_byid = orderstatuses_byid
@@ -236,20 +209,15 @@ export default (ws, fn) => {
 
     const orderlinestatuses_byid = new Map()
     if (plan.orderlinestatuses_all) {
-      const orderlinestatuses = await ws.call(
-        '/outbound_orderlinestatus/outbound_orderlinestatus_qry'
-      )
-      for (const s of orderlinestatuses)
-        orderlinestatuses_byid.set(s.orderlinestatus_id, s)
+      const orderlinestatuses = await ws.call('/outbound_orderlinestatus/outbound_orderlinestatus_qry')
+      for (const s of orderlinestatuses) orderlinestatuses_byid.set(s.orderlinestatus_id, s)
     }
     results.orderlinestatuses_byid = orderlinestatuses_byid
     results.orderlinestatuses = Array.from(orderlinestatuses_byid.values())
 
     const orders_byid = new Map()
     const orders_byname = {}
-    for (const [key, orderstatus_ids] of Object.entries(
-      plan.orders_byname_bystatusids ?? {}
-    )) {
+    for (const [key, orderstatus_ids] of Object.entries(plan.orders_byname_bystatusids ?? {})) {
       if (orderstatus_ids == null || orderstatus_ids.length == 0) continue
       const orders = await ws.call('/outbound_order/outbound_order_qry', {
         orderstatus_ids
@@ -272,20 +240,15 @@ export default (ws, fn) => {
 
     const picklinestatuses_byid = new Map()
     if (plan.picklinestatuses_all) {
-      const picklinestatuses = await ws.call(
-        '/picklinestatus/picklinestatus_qry'
-      )
-      for (const s of picklinestatuses)
-        picklinestatuses_byid.set(s.picklinestatus_id, s)
+      const picklinestatuses = await ws.call('/picklinestatus/picklinestatus_qry')
+      for (const s of picklinestatuses) picklinestatuses_byid.set(s.picklinestatus_id, s)
     }
     results.picklinestatuses_byid = picklinestatuses_byid
     results.picklinestatuses = Array.from(picklinestatuses_byid.values())
 
     const picks_byid = new Map()
     const picks_byname = {}
-    for (const [key, pickstatus_ids] of Object.entries(
-      plan.picks_byname_bystatusids ?? {}
-    )) {
+    for (const [key, pickstatus_ids] of Object.entries(plan.picks_byname_bystatusids ?? {})) {
       if (pickstatus_ids == null || pickstatus_ids.length == 0) continue
       const picks = await ws.call('/pick/pick_qry', {
         pickstatus_ids
@@ -300,19 +263,14 @@ export default (ws, fn) => {
   const queryLocations = async plan => {
     const location_byname = {}
     const locations_byid = new Map()
-    const location_byname_byexternalid = Object.entries(
-      plan.location_byname_byexternalid ?? {}
-    )
+    const location_byname_byexternalid = Object.entries(plan.location_byname_byexternalid ?? {})
       .map(([key, location_external_id]) => ({
         key,
         location_external_id
       }))
       .filter(({ location_external_id }) => location_external_id != null)
     if (location_byname_byexternalid.length > 0) {
-      const results = await ws.call(
-        '/location/locations_get',
-        location_byname_byexternalid
-      )
+      const results = await ws.call('/location/locations_get', location_byname_byexternalid)
       for (const [i, c] of results.entries()) {
         if (c == null) continue
         location_byname[location_byname_byexternalid[i].key] = c
@@ -343,53 +301,36 @@ export default (ws, fn) => {
     isquerying = true
     const plan = fn()
     const changesDetected = {
-      agent:
-        JSON.stringify(plan.agent_byname_byexternalid) !==
-        JSON.stringify(planExecuted.agent_byname_byexternalid),
+      agent: JSON.stringify(plan.agent_byname_byexternalid) !== JSON.stringify(planExecuted.agent_byname_byexternalid),
       component:
         JSON.stringify(plan.component_byname_byexternalid) !==
         JSON.stringify(planExecuted.component_byname_byexternalid),
       schema:
-        JSON.stringify(plan.schemas_byname_bycomponentid) !==
-        JSON.stringify(planExecuted.schemas_byname_bycomponentid),
+        JSON.stringify(plan.schemas_byname_bycomponentid) !== JSON.stringify(planExecuted.schemas_byname_bycomponentid),
       unit:
-        JSON.stringify(plan.units_byname_byschemaids) !==
-          JSON.stringify(planExecuted.units_byname_byschemaids) ||
-        JSON.stringify(plan.units_byname_byids) !==
-          JSON.stringify(planExecuted.units_byname_byids) ||
-        JSON.stringify(plan.units_byexternalid) !==
-          JSON.stringify(planExecuted.units_byexternalid) ||
-        JSON.stringify(plan.units_byid) !==
-          JSON.stringify(planExecuted.units_byid),
+        JSON.stringify(plan.units_byname_byschemaids) !== JSON.stringify(planExecuted.units_byname_byschemaids) ||
+        JSON.stringify(plan.units_byname_byids) !== JSON.stringify(planExecuted.units_byname_byids) ||
+        JSON.stringify(plan.units_byexternalid) !== JSON.stringify(planExecuted.units_byexternalid) ||
+        JSON.stringify(plan.units_byid) !== JSON.stringify(planExecuted.units_byid),
       task:
-        JSON.stringify(plan.tasks_byname_byagentid) !==
-          JSON.stringify(planExecuted.tasks_byname_byagentid) ||
-        JSON.stringify(plan.tasks_byid) !==
-          JSON.stringify(planExecuted.tasks_byid) ||
-        JSON.stringify(plan.tasks_byactiveunitid) !==
-          JSON.stringify(planExecuted.tasks_byactiveunitid),
+        JSON.stringify(plan.tasks_byname_byagentid) !== JSON.stringify(planExecuted.tasks_byname_byagentid) ||
+        JSON.stringify(plan.tasks_byid) !== JSON.stringify(planExecuted.tasks_byid) ||
+        JSON.stringify(plan.tasks_byactiveunitid) !== JSON.stringify(planExecuted.tasks_byactiveunitid),
       order:
         planExecuted.orderstatuses_all !== plan.orderstatuses_all ||
         planExecuted.orderlinestatuses_all !== plan.orderlinestatuses_all ||
-        JSON.stringify(plan.orders_byname_bystatusids) !==
-          JSON.stringify(planExecuted.orders_byname_bystatusids),
+        JSON.stringify(plan.orders_byname_bystatusids) !== JSON.stringify(planExecuted.orders_byname_bystatusids),
       pick:
         planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
         planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
-        JSON.stringify(plan.picks_byname_bystatusids) !==
-          JSON.stringify(planExecuted.picks_byname_bystatusids),
+        JSON.stringify(plan.picks_byname_bystatusids) !== JSON.stringify(planExecuted.picks_byname_bystatusids),
       location:
-        JSON.stringify(plan.location_byname_byexternalid) !==
-        JSON.stringify(planExecuted.location_byname_byexternalid),
+        JSON.stringify(plan.location_byname_byexternalid) !== JSON.stringify(planExecuted.location_byname_byexternalid),
       item:
-        JSON.stringify(plan.items_byexternalid) !==
-          JSON.stringify(planExecuted.items_byexternalid) ||
-        JSON.stringify(plan.items_byid) !==
-          JSON.stringify(planExecuted.items_byid)
+        JSON.stringify(plan.items_byexternalid) !== JSON.stringify(planExecuted.items_byexternalid) ||
+        JSON.stringify(plan.items_byid) !== JSON.stringify(planExecuted.items_byid)
     }
-    const isChange =
-      Object.values(changesDetected).some(v => v) ||
-      Object.values(changesRequested).some(v => v)
+    const isChange = Object.values(changesDetected).some(v => v) || Object.values(changesRequested).some(v => v)
     if (!isChange) {
       isquerying = false
       return
@@ -500,30 +441,20 @@ export default (ws, fn) => {
   ws.on('/unit/units_schema', () => queryLater({ unit: true }))
   ws.on('/exe/tasks_assert', () => queryLater({ task: true }))
   ws.on('/exe/tasks_delete', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_active_unit_ids', () => queryLater({ task: true }))
+  ws.on('/exe/tasks_active_unit_ids', () => queryLater({ task: true, unit: true }))
   ws.on('/exe/tasks_agent', () => queryLater({ task: true }))
   ws.on('/exe/tasks_app_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_core_status', () => queryLater({ task: true }))
   ws.on('/exe/tasks_payload', () => queryLater({ task: true }))
 
-  ws.on('/outbound_order/outbound_order_assert', () =>
-    queryLater({ order: true })
-  )
-  ws.on('/outbound_order/outbound_orderline_assert', () =>
-    queryLater({ order: true })
-  )
-  ws.on('/outbound_orderstatus/outbound_orderstatus_assert', () =>
-    queryLater({ order: true })
-  )
-  ws.on('/outbound_orderlinestatus/outbound_orderlinestatus_assert', () =>
-    queryLater({ order: true })
-  )
+  ws.on('/outbound_order/outbound_order_assert', () => queryLater({ order: true }))
+  ws.on('/outbound_order/outbound_orderline_assert', () => queryLater({ order: true }))
+  ws.on('/outbound_orderstatus/outbound_orderstatus_assert', () => queryLater({ order: true }))
+  ws.on('/outbound_orderlinestatus/outbound_orderlinestatus_assert', () => queryLater({ order: true }))
   ws.on('/pick/pick_assert', () => queryLater({ pick: true }))
   ws.on('/pickline/pickline_assert', () => queryLater({ pick: true }))
   ws.on('/pickstatus/pickstatus_assert', () => queryLater({ pick: true }))
-  ws.on('/picklinestatus/picklinestatus_assert', () =>
-    queryLater({ pick: true })
-  )
+  ws.on('/picklinestatus/picklinestatus_assert', () => queryLater({ pick: true }))
   ws.on('/location/locations_assert', () => queryLater({ location: true }))
 
   ws.on('/item/items_assert', () => queryLater({ item: true }))
