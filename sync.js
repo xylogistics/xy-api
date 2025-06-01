@@ -6,6 +6,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 export default (ws, fn) => {
   const hub = Hub()
   let isquerying = false
+  let changesExternal = {}
   const results = {
     agent_byname: {},
     component_byname: {},
@@ -43,6 +44,27 @@ export default (ws, fn) => {
         if (unit == null) continue
         unit.tasks.push(task)
         task.units.push(unit)
+      }
+    }
+  }
+  const linkOrdersAndPickLines = () => {
+    for (const order of results.orders) {
+      for (const orderline of order.order_lines) {
+        orderline.order = order
+        orderline.picklines = []
+      }
+    }
+    for (const pick of results.picks) {
+      for (const pickline of pick.pick_lines) {
+        pickline.pick = pick
+        const order = results.orders_byid.get(pickline.outbound_order_id)
+        if (order == null) {
+          pickline.order = null
+          pickline.orderline = null
+          continue
+        }
+        order.picklines.push(pickline)
+        pickline.order = order
       }
     }
   }
@@ -296,10 +318,12 @@ export default (ws, fn) => {
     results.items_byid = items_byid
     results.items = Array.from(items_byid.values())
   }
-  const query = async changesRequested => {
+  const query = async () => {
     if (isquerying) return
     isquerying = true
     const plan = fn()
+    const changesRequested = changesExternal
+    changesExternal = {}
     const changesDetected = {
       agent: JSON.stringify(plan.agent_byname_byexternalid) !== JSON.stringify(planExecuted.agent_byname_byexternalid),
       component:
@@ -370,6 +394,8 @@ export default (ws, fn) => {
     }
     if (changesRequested.order || changesDetected.order) {
       await queryOrders(plan)
+      // If we are not querying for picks, refresh picklines
+      if (!changesRequested.task && !changesDetected.task) linkOrdersAndPickLines()
       hub.emit('orderstatuses_byid', results.orderstatuses_byid)
       hub.emit('orderstatuses', results.orderstatuses)
       hub.emit('orderlinestatuses_byid', results.orderlinestatuses_byid)
@@ -380,6 +406,7 @@ export default (ws, fn) => {
     }
     if (changesRequested.pick || changesDetected.pick) {
       await queryPicks(plan)
+      linkOrdersAndPickLines()
       hub.emit('pickstatuses_byid', results.pickstatuses_byid)
       hub.emit('pickstatuses', results.pickstatuses)
       hub.emit('picklinestatuses_byid', results.picklinestatuses_byid)
@@ -415,50 +442,79 @@ export default (ws, fn) => {
     await ws.send('/location/subscribe', { location_ids })
     const item_ids = Array.from(results.items_byid.keys())
     await ws.send('/item/subscribe', { item_ids })
-    queryLater({})
+    queryLater('requery', {})
   }
-  const queryLater = changes => {
+  const queryLater = (path, changes) => {
+    Object.assign(changesExternal, changes)
     const q = async () => {
       await sleep(0)
-      await query(changes)
+      await query()
     }
     q()
   }
-  ws.on('/schema/schemas_assert', () => queryLater({ schema: true }))
-  ws.on('/schema/schemas_delete', () => queryLater({ schema: true }))
-  ws.on('/schema/schemas_payload', () => queryLater({ schema: true }))
-  ws.on('/schema/schemas_applies_to', () => queryLater({ schema: true }))
-  ws.on('/schema/schemas_components', () => queryLater({ schema: true }))
-  ws.on('/schema/schemas_components_for', () => queryLater({ schema: true }))
-  ws.on('/schema/components_assert', () => queryLater({ component: true }))
-  ws.on('/schema/components_delete', () => queryLater({ component: true }))
-  ws.on('/schema/components_payload', () => queryLater({ component: true }))
-  ws.on('/schema/components_schema', () => queryLater({ component: true }))
-  ws.on('/unit/units_assert', () => queryLater({ unit: true }))
-  ws.on('/unit/units_delete', () => queryLater({ unit: true }))
-  ws.on('/unit/units_move', () => queryLater({ unit: true }))
-  ws.on('/unit/units_payload', () => queryLater({ unit: true }))
-  ws.on('/unit/units_schema', () => queryLater({ unit: true }))
-  ws.on('/exe/tasks_assert', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_delete', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_active_unit_ids', () => queryLater({ task: true, unit: true }))
-  ws.on('/exe/tasks_agent', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_app_status', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_core_status', () => queryLater({ task: true }))
-  ws.on('/exe/tasks_payload', () => queryLater({ task: true }))
 
-  ws.on('/outbound_order/outbound_order_assert', () => queryLater({ order: true }))
-  ws.on('/outbound_order/outbound_orderline_assert', () => queryLater({ order: true }))
-  ws.on('/outbound_orderstatus/outbound_orderstatus_assert', () => queryLater({ order: true }))
-  ws.on('/outbound_orderlinestatus/outbound_orderlinestatus_assert', () => queryLater({ order: true }))
-  ws.on('/pick/pick_assert', () => queryLater({ pick: true }))
-  ws.on('/pickline/pickline_assert', () => queryLater({ pick: true }))
-  ws.on('/pickstatus/pickstatus_assert', () => queryLater({ pick: true }))
-  ws.on('/picklinestatus/picklinestatus_assert', () => queryLater({ pick: true }))
-  ws.on('/location/locations_assert', () => queryLater({ location: true }))
+  const schemaSync = [
+    '/schema/schemas_assert',
+    '/schema/schemas_delete',
+    '/schema/schemas_payload',
+    '/schema/schemas_applies_to',
+    '/schema/schemas_components',
+    '/schema/schemas_components_for',
+    '/schema/components_schema'
+  ]
+  for (const path of schemaSync) ws.on(path, () => queryLater(path, { schema: true }))
 
-  ws.on('/item/items_assert', () => queryLater({ item: true }))
-  ws.on('/item/barcodes_assert', () => queryLater({ item: true }))
+  const componentSync = [
+    '/schema/components_assert',
+    '/schema/components_delete',
+    '/schema/components_payload',
+    '/schema/schemas_components',
+    '/schema/components_schema'
+  ]
+  for (const path of componentSync) ws.on(path, () => queryLater(path, { component: true }))
+
+  const unitSync = [
+    '/unit/units_assert',
+    '/unit/units_delete',
+    '/unit/units_move',
+    '/unit/units_payload',
+    '/unit/units_schema',
+    '/exe/tasks_active_unit_ids'
+  ]
+  for (const path of unitSync) ws.on(path, () => queryLater(path, { unit: true }))
+
+  const taskSync = [
+    '/exe/tasks_assert',
+    '/exe/tasks_delete',
+    '/exe/tasks_active_unit_ids',
+    '/exe/tasks_agent',
+    '/exe/tasks_app_status',
+    '/exe/tasks_core_status',
+    '/exe/tasks_payload'
+  ]
+  for (const path of taskSync) ws.on(path, () => queryLater(path, { task: true }))
+
+  const orderSync = [
+    '/outbound_order/outbound_order_assert',
+    '/outbound_order/outbound_orderline_assert',
+    '/outbound_orderstatus/outbound_orderstatus_assert',
+    '/outbound_orderlinestatus/outbound_orderlinestatus_assert'
+  ]
+  for (const path of orderSync) ws.on(path, () => queryLater(path, { order: true }))
+
+  const pickSync = [
+    '/pick/pick_assert',
+    '/pick/pickline_assert',
+    '/pickstatus/pickstatus_assert',
+    '/picklinestatus/picklinestatus_assert'
+  ]
+  for (const path of pickSync) ws.on(path, () => queryLater(path, { pick: true }))
+
+  const locationSync = ['/location/locations_assert']
+  for (const path of locationSync) ws.on(path, () => queryLater(path, { location: true }))
+
+  const itemSync = ['/item/items_assert', '/item/barcodes_assert']
+  for (const path of itemSync) ws.on(path, () => queryLater(path, { item: true }))
 
   const api = {
     on: hub.on,
@@ -466,7 +522,7 @@ export default (ws, fn) => {
     results,
     query,
     refresh: () =>
-      query({
+      queryLater('refresh', {
         agent: true,
         component: true,
         schema: true,
@@ -499,7 +555,45 @@ export default (ws, fn) => {
         app_status: t.app_status,
         core_status: t.core_status
       }
+    },
+    order_sanitise: o => {
+      if (o == null) return null
+      return {
+        entry_id: o.entry_id,
+        order_id: o.order_id,
+        order_external_id: o.order_external_id,
+        orderstatus_id: o.orderstatus_id,
+        payload: o.payload,
+        orderlines: (o.orderlines || []).map(ol => ({
+          orderline_id: ol.orderline_id,
+          outbound_order_id: ol.outbound_order_id,
+          qty_requested: ol.qty_requested,
+          payload: ol.payload
+        }))
+      }
     }
+    // pick_sanitise: p => {
+    //   if (p == null) return null
+    //   return {
+    //     entry_id: p.entry_id,
+    //     pickline_id: p.pickline_id,
+    //     pickline_external_id: p.pickline_external_id,
+    //     pickstatus_id: p.pickstatus_id,
+    //     pick_id: p.pick_id,
+    //     pick_entry_id: p.pick_entry_id,
+    //     pick_external_id: p.pick_external_id,
+    //     payload: p.payload,
+    //     picklines: (p.picklines || []).map(pl => ({
+    //       pickline_id: pl.pickline_id,
+    //       picklinestatus_id: pl.picklinestatus_id,
+    //       outbound_order_id: pl.outbound_order_id,
+    //       outbound_orderline_id: pl.outbound_orderline_id,
+    //       qty_requested: pl.qty_requested,
+    //       qty_picked: pl.qty_picked,
+    //       payload: pl.payload
+    //     }))
+    //   }
+    // }
   }
   return api
 }
