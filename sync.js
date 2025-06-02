@@ -462,7 +462,7 @@ export default (ws, fn) => {
     planExecuted = plan
     isquerying = false
     hub.emit('query', results)
-    if (Object.keys(plan.app_byname_byexternalid).length > 0) await ws.send('/app/subscribe')
+    if (Object.keys(plan.app_byname_byexternalid ?? {}).length > 0) await ws.send('/app/subscribe')
     await ws.send('/schema/subscribe')
     const unit_ids = Array.from(results.units_byid.keys())
     await ws.send('/unit/subscribe', { unit_ids })
