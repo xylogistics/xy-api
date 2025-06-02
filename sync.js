@@ -57,14 +57,19 @@ export default (ws, fn) => {
     for (const pick of results.picks) {
       for (const pickline of pick.pick_lines) {
         pickline.pick = pick
-        const order = results.orders_byid.get(pickline.outbound_order_id)
+        const order = results.orders_byid.get(pickline.order_id)
         if (order == null) {
           pickline.order = null
           pickline.orderline = null
           continue
         }
-        order.picklines.push(pickline)
         pickline.order = order
+        const orderline = order.order_lines.find(ol => ol.orderline_id == pickline.orderline_id)
+        if (orderline == null) {
+          pickline.orderline = null
+          continue
+        }
+        orderline.picklines.push(pickline)
       }
     }
   }
