@@ -586,10 +586,26 @@ export default (ws, fn) => {
         to_location_id: o.to_location_id,
         from_entity_id: o.from_entity_id,
         to_entity_id: o.to_entity_id,
-        orderlines: (o.orderlines || []).map(ol => ({
+        order_lines: (o.order_lines || []).map(ol => ({
+          entry_id: ol.entry_id,
           orderline_id: ol.orderline_id,
-          outbound_order_id: ol.outbound_order_id,
+          orderline_external_id: ol.orderline_external_id,
+          at: ol.at,
+          order_id: ol.order_id,
+          order_entry_id: ol.order_entry_id,
+          order_external_id: ol.order_external_id,
+          name: ol.name,
+          orderlinestatus_id: ol.orderlinestatus_id,
+          item: ol.item,
+          item_id: ol.item_id,
+          item_entry_id: ol.item_entry_id,
+          item_external_id: ol.item_external_id,
           qty_requested: ol.qty_requested,
+          qty_allocated: ol.qty_allocated,
+          qty_picked: ol.qty_picked,
+          qty_consolidated: ol.qty_consolidated,
+          qty_cancelled: ol.qty_cancelled,
+          is_deleted: ol.is_deleted,
           payload: ol.payload
         }))
       }
