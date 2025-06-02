@@ -26,39 +26,60 @@ export default () => global_ctx => {
 
     hub.on('connected', async () => (app.is_connected = true))
     hub.on('disconnected', async () => (app.is_connected = false))
-    hub.on('app_config', async ({ config }) => {
+    hub.on('app_config', async ({ app_id, config }) => {
+      if (app.app_id !== app_id) return
       app.config = config
       for (const a of app.agents()) a.app_config = config
     })
-    hub.on('app_payload', async ({ payload }) => {
+    hub.on('app_payload', async ({ app_id, payload }) => {
+      if (app.app_id !== app_id) return
       app.payload = payload
       for (const a of app.agents()) a.app_payload = payload
     })
     hub.on('agents_assert', async agents => {
-      for (const a of agents) agent_by_id.set(a.agent_id, a)
+      for (const a of agents) {
+        if (a.app_id !== app.app_id) continue
+        agent_by_id.set(a.agent_id, a)
+      }
     })
     hub.on('agents_delete', async agents => {
-      for (const a of agents) agent_by_id.delete(a.agent_id)
+      for (const a of agents) {
+        if (!agent_by_id.has(a.agent_id)) continue
+        agent_by_id.delete(a.agent_id)
+      }
     })
     hub.on('agents_config', async agents => {
-      for (const a of agents) agent_by_id.get(a.agent_id).config = a.config
+      for (const a of agents) {
+        if (!agent_by_id.has(a.agent_id)) continue
+        const agent = agent_by_id.get(a.agent_id)
+        agent.config = a.config
+      }
     })
     hub.on('agents_payload', async agents => {
-      for (const a of agents) agent_by_id.get(a.agent_id).payload = a.payload
+      for (const a of agents) {
+        if (!agent_by_id.has(a.agent_id)) continue
+        const agent = agent_by_id.get(a.agent_id)
+        agent.payload = a.payload
+      }
     })
     hub.on('agents_app_status', async agents => {
-      for (const a of agents)
-        agent_by_id.get(a.agent_id).app_status = a.app_status
+      for (const a of agents) {
+        if (!agent_by_id.has(a.agent_id)) continue
+        const agent = agent_by_id.get(a.agent_id)
+        agent.app_status = a.app_status
+      }
     })
     hub.on('agents_core_status', async agents => {
-      for (const a of agents)
-        agent_by_id.get(a.agent_id).core_status = a.core_status
+      for (const a of agents) {
+        if (!agent_by_id.has(a.agent_id)) continue
+        const agent = agent_by_id.get(a.agent_id)
+        agent.core_status = a.core_status
+      }
     })
 
     const ctx = { ...global_ctx, app, hub }
 
-    for (const use of global_ctx.app_use)
-      await use(async m => Object.assign(ctx, await m(ctx)))
+    for (const use of global_ctx.app_use) await use(async m => Object.assign(ctx, await m(ctx)))
 
     return app
   }

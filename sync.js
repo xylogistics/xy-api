@@ -8,6 +8,8 @@ export default (ws, fn) => {
   let isquerying = false
   let changesExternal = {}
   const results = {
+    app_byname: {},
+    agents_byname: {},
     agent_byname: {},
     component_byname: {},
     schemas_byname: {},
@@ -74,6 +76,8 @@ export default (ws, fn) => {
     }
   }
   let planExecuted = {
+    app_byname_byexternalid: {},
+    // agents_byname_byappid: {},
     agent_byname_byexternalid: {},
     component_byname_byexternalid: {},
     schemas_byname_bycomponentid: {},
@@ -93,6 +97,25 @@ export default (ws, fn) => {
     location_byname_byexternalid: {},
     items_byexternalid: [],
     items_byid: []
+  }
+  const queryApps = async plan => {
+    const app_byname = {}
+    const app_byname_byexternalid = Object.entries(plan.app_byname_byexternalid ?? {})
+      .map(([key, app_external_id]) => ({
+        key,
+        app_external_id
+      }))
+      .filter(({ app_external_id }) => app_external_id != null)
+    if (app_byname_byexternalid.length > 0) {
+      const results = await ws.call('/app/apps_get', app_byname_byexternalid)
+      for (const [i, c] of results.entries()) {
+        if (c == null) continue
+        app_byname[app_byname_byexternalid[i].key] = c
+      }
+    }
+    if (JSON.stringify(app_byname) !== JSON.stringify(results.app_byname)) {
+      results.app_byname = app_byname
+    }
   }
   const queryAgents = async plan => {
     const agent_byname = {}
@@ -330,6 +353,7 @@ export default (ws, fn) => {
     const changesRequested = changesExternal
     changesExternal = {}
     const changesDetected = {
+      app: JSON.stringify(plan.app_byname_byexternalid) !== JSON.stringify(planExecuted.app_byname_byexternalid),
       agent: JSON.stringify(plan.agent_byname_byexternalid) !== JSON.stringify(planExecuted.agent_byname_byexternalid),
       component:
         JSON.stringify(plan.component_byname_byexternalid) !==
@@ -370,6 +394,10 @@ export default (ws, fn) => {
       changesRequested,
       changesDetected
     })
+    if (changesRequested.app || changesDetected.app) {
+      await queryApps(plan)
+      hub.emit('app_byname', results.app_byname)
+    }
     if (changesRequested.agent || changesDetected.agent) {
       await queryAgents(plan)
       hub.emit('agent_byname', results.agent_byname)
@@ -434,6 +462,7 @@ export default (ws, fn) => {
     planExecuted = plan
     isquerying = false
     hub.emit('query', results)
+    if (Object.keys(plan.app_byname_byexternalid).length > 0) await ws.send('/app/subscribe')
     await ws.send('/schema/subscribe')
     const unit_ids = Array.from(results.units_byid.keys())
     await ws.send('/unit/subscribe', { unit_ids })
@@ -457,6 +486,22 @@ export default (ws, fn) => {
     }
     q()
   }
+
+  const appSync = [
+    '/app/app_assert',
+    '/app/app_delete',
+    '/app/app_config',
+    '/app/app_payload',
+    '/app/app_connected',
+    '/app/agents_assert',
+    '/app/agents_delete',
+    '/app/agents_config',
+    '/app/agents_payload',
+    '/app/agents_app_status',
+    '/app/agents_core_status',
+    '/app/agents_connected'
+  ]
+  for (const path of appSync) ws.on(path, () => queryLater(path, { app: true, agent: true }))
 
   const schemaSync = [
     '/schema/schemas_assert',
@@ -528,6 +573,7 @@ export default (ws, fn) => {
     query,
     refresh: () =>
       queryLater('refresh', {
+        app: true,
         agent: true,
         component: true,
         schema: true,
