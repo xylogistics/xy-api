@@ -610,6 +610,7 @@ export default (ws, fn) => {
     order_sanitise: o => {
       if (o == null) return null
       return {
+        entity_id: o.entity_id,
         order_id: o.order_id,
         order_external_id: o.order_external_id,
         order_group_id: o.order_group_id,
