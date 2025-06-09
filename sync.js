@@ -29,8 +29,11 @@ export default (ws, fn) => {
     pickstatuses: [],
     picklinestatuses_byid: new Map(),
     picklinestatuses: [],
+    picks: [],
     picks_byid: new Map(),
     picks_byname: {},
+    picklines: [],
+    picklines_byid: new Map(),
     locations: [],
     locations_byid: new Map(),
     location_byname: {},
@@ -74,6 +77,22 @@ export default (ws, fn) => {
         orderline.picklines.push(pickline)
       }
     }
+    for (const pickline of results.picklines) {
+      if (pickline.pick) continue
+      const order = results.orders_byid.get(pickline.order_id)
+      if (order == null) {
+        pickline.order = null
+        pickline.orderline = null
+        continue
+      }
+      pickline.order = order
+      const orderline = order.order_lines.find(ol => ol.orderline_id == pickline.orderline_id)
+      if (orderline == null) {
+        pickline.orderline = null
+        continue
+      }
+      orderline.picklines.push(pickline)
+    }
   }
   let planExecuted = {
     app_byname_byexternalid: {},
@@ -94,6 +113,7 @@ export default (ws, fn) => {
     pickstatuses_all: false,
     picklinestatuses_all: false,
     picks_byname_bystatusids: {},
+    picklines_byorderlineids: [],
     location_byname_byexternalid: {},
     items_byexternalid: [],
     items_byid: []
@@ -298,17 +318,40 @@ export default (ws, fn) => {
 
     const picks_byid = new Map()
     const picks_byname = {}
+    const picklines_byid = new Map()
+    const picklines = []
+
     for (const [key, pickstatus_ids] of Object.entries(plan.picks_byname_bystatusids ?? {})) {
       if (pickstatus_ids == null || pickstatus_ids.length == 0) continue
       const picks = await ws.call('/pick/pick_qry', {
         pickstatus_ids
       })
-      for (const pick of picks) picks_byid.set(pick.pick_id, pick)
+      for (const pick of picks) {
+        picks_byid.set(pick.pick_id, pick)
+        for (const pickline of pick.pick_lines ?? []) {
+          picklines_byid.set(pickline.pickline_id, pickline)
+          picklines.push(pickline)
+        }
+      }
       picks_byname[key] = picks
     }
     results.picks_byid = picks_byid
     results.picks_byname = picks_byname
     results.picks = Array.from(picks_byid.values())
+
+    if (plan.picklines_byorderlineids?.length > 0) {
+      const res = await ws.call('/pickline/pickline_qry', {
+        outbound_orderline_ids: plan.picklines_byorderlineids
+      })
+      for (const pickline of res) {
+        if (picklines_byid.has(pickline.pickline_id)) continue
+        picklines_byid.set(pickline.pickline_id, pickline)
+        picklines.push(pickline)
+      }
+    }
+
+    results.picklines_byid = picklines_byid
+    results.picklines = picklines
   }
   const queryLocations = async plan => {
     const location_byname = {}
@@ -376,7 +419,8 @@ export default (ws, fn) => {
       pick:
         planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
         planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
-        JSON.stringify(plan.picks_byname_bystatusids) !== JSON.stringify(planExecuted.picks_byname_bystatusids),
+        JSON.stringify(plan.picks_byname_bystatusids) !== JSON.stringify(planExecuted.picks_byname_bystatusids) ||
+        JSON.stringify(plan.picklines_byorderlineids) !== JSON.stringify(planExecuted.picklines_byorderlineids),
       location:
         JSON.stringify(plan.location_byname_byexternalid) !== JSON.stringify(planExecuted.location_byname_byexternalid),
       item:
