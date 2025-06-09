@@ -1,4 +1,3 @@
-import { version } from 'react'
 import { Hub } from './hub.js'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))

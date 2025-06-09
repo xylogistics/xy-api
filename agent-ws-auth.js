@@ -18,8 +18,14 @@ export default () =>
       return { ok: false, status: 404, message: 'passcode socket not found' }
     }
 
-    core_ws_client.register(
-      '/agent/complete_auth_workflow',
-      complete_auth_workflow
-    )
+    core_ws_client.register('/agent/complete_auth_workflow', complete_auth_workflow)
+
+    core_ws_client.register('/app/agents_reset', async agents => {
+      for (const { agent_id } of agents) {
+        const socket = app.socket_byagentid(agent_id)
+        if (!socket) continue
+        if (socket.readyState !== agent_ws_server.OPEN) continue
+        await socket.call('/agent/reset', { agent_id })
+      }
+    })
   }
