@@ -1,3 +1,4 @@
+import { version } from 'react'
 import { Hub } from './hub.js'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -637,7 +638,8 @@ export default (ws, fn) => {
         outer_id: u.outer_id,
         old_outer_id: u.old_outer_id,
         payload: u.payload,
-        schema_id: u.schema_id
+        schema_id: u.schema_id,
+        version: u.version
       }
     },
     task_sanitise: t => {
@@ -648,7 +650,8 @@ export default (ws, fn) => {
         payload: t.payload,
         active_unit_ids: t.active_unit_ids,
         app_status: t.app_status,
-        core_status: t.core_status
+        core_status: t.core_status,
+        version: t.version
       }
     },
     order_sanitise: o => {
