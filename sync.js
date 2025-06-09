@@ -392,121 +392,86 @@ export default (ws, fn) => {
   const query = async () => {
     if (isquerying) return
     isquerying = true
-    const plan = fn()
-    const changesRequested = changesExternal
-    changesExternal = {}
-    const changesDetected = {
-      app: JSON.stringify(plan.app_byname_byexternalid) !== JSON.stringify(planExecuted.app_byname_byexternalid),
-      agent: JSON.stringify(plan.agent_byname_byexternalid) !== JSON.stringify(planExecuted.agent_byname_byexternalid),
-      component:
-        JSON.stringify(plan.component_byname_byexternalid) !==
-        JSON.stringify(planExecuted.component_byname_byexternalid),
-      schema:
-        JSON.stringify(plan.schemas_byname_bycomponentid) !== JSON.stringify(planExecuted.schemas_byname_bycomponentid),
-      unit:
-        JSON.stringify(plan.units_byname_byschemaids) !== JSON.stringify(planExecuted.units_byname_byschemaids) ||
-        JSON.stringify(plan.units_byname_byids) !== JSON.stringify(planExecuted.units_byname_byids) ||
-        JSON.stringify(plan.units_byexternalid) !== JSON.stringify(planExecuted.units_byexternalid) ||
-        JSON.stringify(plan.units_byid) !== JSON.stringify(planExecuted.units_byid),
-      task:
-        JSON.stringify(plan.tasks_byname_byagentid) !== JSON.stringify(planExecuted.tasks_byname_byagentid) ||
-        JSON.stringify(plan.tasks_byid) !== JSON.stringify(planExecuted.tasks_byid) ||
-        JSON.stringify(plan.tasks_byactiveunitid) !== JSON.stringify(planExecuted.tasks_byactiveunitid),
-      order:
-        planExecuted.orderstatuses_all !== plan.orderstatuses_all ||
-        planExecuted.orderlinestatuses_all !== plan.orderlinestatuses_all ||
-        JSON.stringify(plan.orders_byname_bystatusids) !== JSON.stringify(planExecuted.orders_byname_bystatusids),
-      pick:
-        planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
-        planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
-        JSON.stringify(plan.picks_byname_bystatusids) !== JSON.stringify(planExecuted.picks_byname_bystatusids) ||
-        JSON.stringify(plan.picklines_byorderlineids) !== JSON.stringify(planExecuted.picklines_byorderlineids),
-      location:
-        JSON.stringify(plan.location_byname_byexternalid) !== JSON.stringify(planExecuted.location_byname_byexternalid),
-      item:
-        JSON.stringify(plan.items_byexternalid) !== JSON.stringify(planExecuted.items_byexternalid) ||
-        JSON.stringify(plan.items_byid) !== JSON.stringify(planExecuted.items_byid)
+    let iteration = 0
+    while (true) {
+      iteration++
+      if (iteration > 100) {
+        console.error('Query loop exceeded 100 iterations, breaking to avoid infinite loop')
+        break
+      }
+      const plan = fn()
+      const changesRequested = changesExternal
+      changesExternal = {}
+      const changesDetected = {
+        app: JSON.stringify(plan.app_byname_byexternalid) !== JSON.stringify(planExecuted.app_byname_byexternalid),
+        agent:
+          JSON.stringify(plan.agent_byname_byexternalid) !== JSON.stringify(planExecuted.agent_byname_byexternalid),
+        component:
+          JSON.stringify(plan.component_byname_byexternalid) !==
+          JSON.stringify(planExecuted.component_byname_byexternalid),
+        schema:
+          JSON.stringify(plan.schemas_byname_bycomponentid) !==
+          JSON.stringify(planExecuted.schemas_byname_bycomponentid),
+        unit:
+          JSON.stringify(plan.units_byname_byschemaids) !== JSON.stringify(planExecuted.units_byname_byschemaids) ||
+          JSON.stringify(plan.units_byname_byids) !== JSON.stringify(planExecuted.units_byname_byids) ||
+          JSON.stringify(plan.units_byexternalid) !== JSON.stringify(planExecuted.units_byexternalid) ||
+          JSON.stringify(plan.units_byid) !== JSON.stringify(planExecuted.units_byid),
+        task:
+          JSON.stringify(plan.tasks_byname_byagentid) !== JSON.stringify(planExecuted.tasks_byname_byagentid) ||
+          JSON.stringify(plan.tasks_byid) !== JSON.stringify(planExecuted.tasks_byid) ||
+          JSON.stringify(plan.tasks_byactiveunitid) !== JSON.stringify(planExecuted.tasks_byactiveunitid),
+        order:
+          planExecuted.orderstatuses_all !== plan.orderstatuses_all ||
+          planExecuted.orderlinestatuses_all !== plan.orderlinestatuses_all ||
+          JSON.stringify(plan.orders_byname_bystatusids) !== JSON.stringify(planExecuted.orders_byname_bystatusids),
+        pick:
+          planExecuted.pickstatuses_all !== plan.pickstatuses_all ||
+          planExecuted.picklinestatuses_all !== plan.picklinestatuses_all ||
+          JSON.stringify(plan.picks_byname_bystatusids) !== JSON.stringify(planExecuted.picks_byname_bystatusids) ||
+          JSON.stringify(plan.picklines_byorderlineids) !== JSON.stringify(planExecuted.picklines_byorderlineids),
+        location:
+          JSON.stringify(plan.location_byname_byexternalid) !==
+          JSON.stringify(planExecuted.location_byname_byexternalid),
+        item:
+          JSON.stringify(plan.items_byexternalid) !== JSON.stringify(planExecuted.items_byexternalid) ||
+          JSON.stringify(plan.items_byid) !== JSON.stringify(planExecuted.items_byid)
+      }
+      const isChange = Object.values(changesDetected).some(v => v) || Object.values(changesRequested).some(v => v)
+      if (!isChange) break
+      hub.emit('plan', {
+        planExisting: planExecuted,
+        planNew: plan,
+        changesRequested,
+        changesDetected
+      })
+      if (changesRequested.app || changesDetected.app) await queryApps(plan)
+      if (changesRequested.agent || changesDetected.agent) await queryAgents(plan)
+      if (changesRequested.component || changesDetected.component) await queryComponents(plan)
+      if (changesRequested.schema || changesDetected.schema) await querySchemas(plan)
+      if (changesRequested.unit || changesDetected.unit) {
+        await queryUnits(plan)
+        if (!changesRequested.task && !changesDetected.task) linkUnitsAndTasks()
+      }
+      if (changesRequested.task || changesDetected.task) {
+        await queryTasks(plan)
+        linkUnitsAndTasks()
+      }
+      if (changesRequested.order || changesDetected.order) {
+        await queryOrders(plan)
+        if (!changesRequested.task && !changesDetected.task) linkOrdersAndPickLines()
+      }
+      if (changesRequested.pick || changesDetected.pick) {
+        await queryPicks(plan)
+        linkOrdersAndPickLines()
+      }
+      if (changesRequested.location || changesDetected.location) await queryLocations(plan)
+      if (changesRequested.item || changesDetected.item) await queryItems(plan)
+      planExecuted = plan
     }
-    const isChange = Object.values(changesDetected).some(v => v) || Object.values(changesRequested).some(v => v)
-    if (!isChange) {
-      isquerying = false
-      return
-    }
-    hub.emit('plan', {
-      planExisting: planExecuted,
-      planNew: plan,
-      changesRequested,
-      changesDetected
-    })
-    if (changesRequested.app || changesDetected.app) {
-      await queryApps(plan)
-      hub.emit('app_byname', results.app_byname)
-    }
-    if (changesRequested.agent || changesDetected.agent) {
-      await queryAgents(plan)
-      hub.emit('agent_byname', results.agent_byname)
-    }
-    if (changesRequested.component || changesDetected.component) {
-      await queryComponents(plan)
-      hub.emit('component_byname', results.component_byname)
-    }
-    if (changesRequested.schema || changesDetected.schema) {
-      await querySchemas(plan)
-      hub.emit('schemas_byname', results.schemas_byname)
-    }
-    if (changesRequested.unit || changesDetected.unit) {
-      await queryUnits(plan)
-      // If we are not querying for tasks, refresh units
-      if (!changesRequested.task && !changesDetected.task) linkUnitsAndTasks()
-      hub.emit('units_byname', results.units_byname)
-      hub.emit('units_byid', results.units_byid)
-      hub.emit('units', results.units)
-    }
-    if (changesRequested.task || changesDetected.task) {
-      await queryTasks(plan)
-      linkUnitsAndTasks()
-      hub.emit('tasks_byname', results.tasks_byname)
-      hub.emit('tasks_byid', results.tasks_byid)
-      hub.emit('tasks', results.tasks)
-    }
-    if (changesRequested.order || changesDetected.order) {
-      await queryOrders(plan)
-      // If we are not querying for picks, refresh picklines
-      if (!changesRequested.task && !changesDetected.task) linkOrdersAndPickLines()
-      hub.emit('orderstatuses_byid', results.orderstatuses_byid)
-      hub.emit('orderstatuses', results.orderstatuses)
-      hub.emit('orderlinestatuses_byid', results.orderlinestatuses_byid)
-      hub.emit('orderlinestatuses', results.orderlinestatuses)
-      hub.emit('orders_byid', results.orders_byid)
-      hub.emit('orders_byname', results.orders_byname)
-      hub.emit('orders', results.orders)
-    }
-    if (changesRequested.pick || changesDetected.pick) {
-      await queryPicks(plan)
-      linkOrdersAndPickLines()
-      hub.emit('pickstatuses_byid', results.pickstatuses_byid)
-      hub.emit('pickstatuses', results.pickstatuses)
-      hub.emit('picklinestatuses_byid', results.picklinestatuses_byid)
-      hub.emit('picklinestatuses', results.picklinestatuses)
-      hub.emit('picks_byid', results.picks_byid)
-      hub.emit('picks_byname', results.picks_byname)
-      hub.emit('picks', results.picks)
-    }
-    if (changesRequested.location || changesDetected.location) {
-      await queryLocations(plan)
-      hub.emit('location_byname', results.location_byname)
-      hub.emit('locations_byid', results.locations_byid)
-      hub.emit('locations', results.locations)
-    }
-    if (changesRequested.item || changesDetected.item) {
-      await queryItems(plan)
-      hub.emit('items_byid', results.items_byid)
-      hub.emit('items', results.items)
-    }
-    planExecuted = plan
     isquerying = false
     hub.emit('query', results)
-    if (Object.keys(plan.app_byname_byexternalid ?? {}).length > 0) await ws.send('/app/subscribe')
+    if (Object.keys(planExecuted.app_byname_byexternalid ?? {}).length > 0) await ws.send('/app/subscribe')
     await ws.send('/schema/subscribe')
     const unit_ids = Array.from(results.units_byid.keys())
     await ws.send('/unit/subscribe', { unit_ids })
@@ -520,7 +485,6 @@ export default (ws, fn) => {
     await ws.send('/location/subscribe', { location_ids })
     const item_ids = Array.from(results.items_byid.keys())
     await ws.send('/item/subscribe', { item_ids })
-    queryLater('requery', {})
   }
   const queryLater = (path, changes) => {
     Object.assign(changesExternal, changes)
