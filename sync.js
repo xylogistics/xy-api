@@ -459,7 +459,7 @@ export default (ws, fn) => {
       }
       if (changesRequested.order || changesDetected.order) {
         await queryOrders(plan)
-        if (!changesRequested.task && !changesDetected.task) linkOrdersAndPickLines()
+        if (!changesRequested.pick && !changesDetected.pick) linkOrdersAndPickLines()
       }
       if (changesRequested.pick || changesDetected.pick) {
         await queryPicks(plan)
