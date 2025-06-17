@@ -1,11 +1,17 @@
 export default ({ delayMS = 1000 } = {}) => {
+  const expectedVersions = new Map()
   const pending = new Map()
   const handles = new Map()
   const drain = key => {
     if (!pending.has(key)) return
     const fns = pending.get(key)
     if (fns.length == 0) return pending.delete(key)
-    const fn = fns.shift()
+    if (expectedVersions.has(key)) {
+      const expectedVersion = expectedVersions.get(key)
+      if (fns[0].version < expectedVersion) return
+      expectedVersions.delete(key)
+    }
+    const { fn } = fns.shift()
     if (fns.length == 0) pending.delete(key)
     fn()
     if (!pending.has(key)) return
@@ -22,15 +28,13 @@ export default ({ delayMS = 1000 } = {}) => {
     )
   }
   const api = {
-    enqueue: (key, fn) => {
+    enqueue: (key, version, fn) => {
       if (!pending.has(key)) pending.set(key, [])
-      pending.get(key).push(fn)
+      pending.get(key).push({ version, fn })
       check(key)
     },
-    cancel: key => {
-      if (!handles.has(key)) return
-      clearTimeout(handles.get(key))
-      handles.delete(key)
+    setExpectedVersion: (key, expectedVersion) => {
+      expectedVersions.set(key, Math.max(expectedVersions.get(key) ?? 0, expectedVersion))
     },
     setDelayMS: newDelayMS => (delayMS = newDelayMS)
   }

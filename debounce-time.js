@@ -15,7 +15,8 @@ export default ({ delayMS = 1000 } = {}) => {
       if (!handles.has(key)) return
       clearTimeout(handles.get(key))
       handles.delete(key)
-    }
+    },
+    setDelayMS: newDelayMS => (delayMS = newDelayMS)
   }
   return api
 }
