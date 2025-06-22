@@ -1,3 +1,5 @@
+import sleep from './sleep.js'
+
 // Pipe agent auth completion to the agent's socket using the passcode
 export default () =>
   async ({ jwt, agent_ws_server, core_ws_client, app }) => {
@@ -26,6 +28,12 @@ export default () =>
         if (!socket) continue
         if (socket.readyState !== agent_ws_server.OPEN) continue
         await socket.call('/agent/reset', { agent_id })
+      }
+      await sleep(20)
+      for (const { agent_id } of agents) {
+        const socket = app.socket_byagentid(agent_id)
+        if (!socket) continue
+        socket.destroy()
       }
     })
   }

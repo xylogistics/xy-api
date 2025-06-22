@@ -30,9 +30,7 @@ export default () =>
     // TODO: Deprecated. Remove after upgrade.
     app.agent_socket = agent_id => {
       if (!depreciatedNotified) {
-        console.warn(
-          'app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.'
-        )
+        console.warn('app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.')
         depreciatedNotified = true
       }
       return agentsocket_byid.get(agent_id)
@@ -85,15 +83,14 @@ export default () =>
     })
 
     // Implement commands for the agent to call
-    agent_ws_shim.register('/agent/register', (_, socket) => {
+    agent_ws_shim.register('/agent/register', async (_, socket) => {
       const agent_id = socket.request.authorization?.agent_id
       if (!app.agent(agent_id)) throw new UnknownAgent()
+      // if (agentsocket_byid.has(agent_id)) return { ok: false, status: 400, message: 'Already connected' }
       if (agentsocket_byid.has(agent_id)) throw new AlreadyConnected()
       const agent = app.agent(agent_id)
       hub.emit('agent connected', { agent, socket })
-      socket.on('close', () =>
-        hub.emit('agent disconnected', { agent, socket })
-      )
+      socket.on('close', () => hub.emit('agent disconnected', { agent, socket }))
       return { agent }
     })
   }

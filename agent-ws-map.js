@@ -13,17 +13,7 @@ export default () =>
       }
       return a
     }
-    agent_ws_server.register_unhandled((name, params, socket) => {
-      return get_app(socket).call(name, params, socket)
-    })
-    // Events are untested! What events will come from a connected agent?
-    agent_ws_server.unhandled((e, params, socket) => {
-      if (!socket) return
-      try {
-        get_app(socket).sendEvent(e, params, socket)
-      } catch (e) {
-        if (!e.ok) return
-        console.error('Error in websocket event', e)
-      }
+    agent_ws_server.register_unhandled(async (name, params, socket) => {
+      return await get_app(socket).call(name, params, socket)
     })
   }
