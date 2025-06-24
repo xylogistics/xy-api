@@ -1,5 +1,6 @@
 export default ({ delayMS = 1000 } = {}) => {
   const expectedVersions = new Map()
+  const currentVersions = new Map()
   const pending = new Map()
   const handles = new Map()
   const drain = key => {
@@ -8,10 +9,14 @@ export default ({ delayMS = 1000 } = {}) => {
     if (fns.length == 0) return pending.delete(key)
     if (expectedVersions.has(key)) {
       const expectedVersion = expectedVersions.get(key)
-      if (fns[0].version < expectedVersion) return
+      const currentVersion = currentVersions.get(key) ?? 0
+      if (currentVersion < expectedVersion) {
+        console.log('Version debounce: skipping', { key, currentVersion, expectedVersion })
+        return
+      }
       expectedVersions.delete(key)
     }
-    const { fn } = fns.shift()
+    const fn = fns.shift()
     if (fns.length == 0) pending.delete(key)
     fn()
     if (!pending.has(key)) return
@@ -29,8 +34,9 @@ export default ({ delayMS = 1000 } = {}) => {
   }
   const api = {
     enqueue: (key, version, fn) => {
+      currentVersions.set(key, Math.max(currentVersions.get(key) ?? 0, version))
       if (!pending.has(key)) pending.set(key, [])
-      pending.get(key).push({ version, fn })
+      pending.get(key).push(fn)
       check(key)
     },
     setExpectedVersion: (key, expectedVersion) => {
