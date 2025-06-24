@@ -240,12 +240,12 @@ export default (ws, fn) => {
     const tasks_byname = {}
     for (const [key, agent_id] of Object.entries(plan.tasks_byname_byagentid ?? {})) {
       if (agent_id == null) continue
-      const tasks = await ws.call('/exe/tasks_all_byagent', { agent_id })
+      const tasks = await ws.call('/exe/tasks_active_byagent', { agent_id })
       for (const task of tasks) tasks_byid.set(task.task_id, task)
       tasks_byname[key] = tasks
     }
     if ((plan.tasks_byactiveunitid || []).length > 0) {
-      const tasks_activeunit = await ws.call('/exe/tasks_all_byactiveunit_ids', {
+      const tasks_activeunit = await ws.call('/exe/tasks_active_byactiveunit_ids', {
         unit_ids: plan.tasks_byactiveunitid
       })
       for (const task of tasks_activeunit) {
@@ -477,9 +477,11 @@ export default (ws, fn) => {
       await ws.send('/schema/subscribe')
       const unit_ids = Array.from(results.units_byid.keys())
       await ws.send('/unit/subscribe', { unit_ids })
+      const task_agent_ids = Object.values(planExecuted.tasks_byname_byagentid ?? {}).flat()
       await ws.send('/exe/subscribe', {
         task_ids: results.tasks.map(t => t.task_id),
-        active_unit_ids: unit_ids
+        active_unit_ids: unit_ids,
+        task_agent_ids: task_agent_ids.length > 0 ? task_agent_ids : undefined
       })
       const order_ids = Array.from(results.orders_byid.keys())
       await ws.send('/outbound_order/subscribe', { order_ids })
