@@ -403,6 +403,7 @@ export default (ws, fn) => {
         }
         const plan = fn()
         const changesRequested = changesExternal
+        changesExternal = {}
         const changesDetected = {
           app: JSON.stringify(plan.app_byname_byexternalid) !== JSON.stringify(planExecuted.app_byname_byexternalid),
           agent:
@@ -469,7 +470,6 @@ export default (ws, fn) => {
         if (changesRequested.location || changesDetected.location) await queryLocations(plan)
         if (changesRequested.item || changesDetected.item) await queryItems(plan)
         planExecuted = plan
-        changesExternal = {}
       }
       isquerying = false
       hub.emit('query', results)
