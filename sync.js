@@ -377,10 +377,7 @@ export default (ws, fn) => {
   const queryItems = async plan => {
     const items_byid = new Map()
     if (plan.items_byid?.length > 0) {
-      const items = await ws.call(
-        '/item/items_query',
-        plan.items_byid.map(item_id => ({ item_id }))
-      )
+      const items = await ws.call('/item/items_query', { item_ids: plan.items_byid })
       for (const item of items) {
         if (items_byid.has(item.item_id)) continue
         items_byid.set(item.item_id, item)
