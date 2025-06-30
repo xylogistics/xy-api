@@ -4,7 +4,7 @@ import { backOff } from 'exponential-backoff'
 
 export default ({ app_host_api, app_host_auth_token }) =>
   async ({ app_name, app, hub }) => {
-    console.log(`${app_name} connecting to ${app_host_api}`)
+    console.log(`👾 . ${app_name} app host -> ${app_host_api}`)
     const app_host_ws_client = createClient({
       url: app_host_api.replace(/^http/, 'ws'),
       wsOptions: {
@@ -17,14 +17,11 @@ export default ({ app_host_api, app_host_auth_token }) =>
     })
     app_host_ws_client.on('connected', async () => {
       hub.emit('connected')
-      app_host_ws_client.register(
-        '/app/install',
-        async ({ app_id, auth_token, connect_url }) => {
-          const res = await app.create({ app_id, auth_token, connect_url })
-          hub.emit('app_installed', res)
-          return res
-        }
-      )
+      app_host_ws_client.register('/app/install', async ({ app_id, auth_token, connect_url }) => {
+        const res = await app.create({ app_id, auth_token, connect_url })
+        hub.emit('app_installed', res)
+        return res
+      })
       app_host_ws_client.register('/app/remove', async ({ app_id }) => {
         const a = app.app(app_id)
         if (!a) throw new Error('App not found')
@@ -34,27 +31,23 @@ export default ({ app_host_api, app_host_auth_token }) =>
             config: { ...a.config, app_host_id: null }
           })
         } catch (e) {
-          console.error('Error removing app', e)
+          console.error(`👾 X ${app_name} app remove`, JSON.stringify(e, Object.getOwnPropertyNames(e)))
         }
         await a.close()
         hub.emit('app_removed', a)
       })
 
-      await backOff(
-        async () =>
-          await app_host_ws_client.call('/app_host/app_host_register', {}),
-        {
-          startingDelay: 200,
-          numOfAttempts: Number.MAX_SAFE_INTEGER,
-          maxDelay: 10000,
-          retry: err => {
-            console.error('Error on app host register', err)
-            return app_host_ws_client.is_connected()
-          }
+      await backOff(async () => await app_host_ws_client.call('/app_host/app_host_register', {}), {
+        startingDelay: 200,
+        numOfAttempts: Number.MAX_SAFE_INTEGER,
+        maxDelay: 10000,
+        retry: e => {
+          console.error(`👾 X ${app_name} app host`, JSON.stringify(e, Object.getOwnPropertyNames(e)))
+          return app_host_ws_client.is_connected()
         }
-      )
+      })
 
-      console.log(`${app_name} registered as app host`)
+      console.log(`👾 √ ${app_name} app host`)
 
       hub.on('shutdown', async () => {
         app_host_ws_client.close()

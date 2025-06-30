@@ -396,7 +396,7 @@ export default (ws, fn) => {
       while (true) {
         iteration++
         if (iteration > 100) {
-          console.error('Query loop exceeded 100 iterations, breaking to avoid infinite loop')
+          console.error('👾 . sync > 100 iterations')
           break
         }
         const plan = fn()

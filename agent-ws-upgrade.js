@@ -6,7 +6,7 @@ export default () =>
       try {
         req.authorization = jwt.verify(token)
       } catch (e) {
-        console.error('Agent WS Auth', e)
+        console.error('👾 X agent auth', JSON.stringify(e, Object.getOwnPropertyNames(e)))
       }
     })
   }

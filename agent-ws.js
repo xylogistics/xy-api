@@ -27,14 +27,6 @@ export default () =>
     hub.on('agent disconnected', async ({ agent }) => {
       agentsocket_byid.delete(agent.agent_id)
     })
-    // TODO: Deprecated. Remove after upgrade.
-    app.agent_socket = agent_id => {
-      if (!depreciatedNotified) {
-        console.warn('app.agent_socket(agent_id) is deprecated. Use app.sockets_byagentid(agent_id) instead.')
-        depreciatedNotified = true
-      }
-      return agentsocket_byid.get(agent_id)
-    }
     app.socket_byagentid = agent_id => agentsocket_byid.get(agent_id)
     app.sockets = () => Array.from(agentsocket_byid.values())
 

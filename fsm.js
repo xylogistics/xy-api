@@ -100,7 +100,7 @@ const FsmMachine = ({ getState, transitions, actionsToAttempt }) => {
         // If this movement is no longer valid we will exception and the retry will pickup a new action attempt
         await state.fsm.move(new_action ?? action, state.item)
       } catch (e) {
-        console.error('FSM Attempt', e)
+        console.error('👾 . fsm', JSON.stringify(e, Object.getOwnPropertyNames(e)))
         state.promise = retryLater(id)
       }
     }

@@ -5,7 +5,7 @@ export default () => {
       if (!expectedVersions.has(key)) return fn()
       const expectedVersion = expectedVersions.get(key)
       if (currentVersion < expectedVersion) {
-        console.log('Version debounce: skipping', { key, currentVersion, expectedVersion })
+        console.log('👾 . debounce version', JSON.stringify({ key, currentVersion, expectedVersion }))
         return
       }
       expectedVersions.delete(key)

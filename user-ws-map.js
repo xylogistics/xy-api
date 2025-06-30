@@ -19,7 +19,7 @@ export default () =>
         get_app(socket).sendEvent(e, params, socket)
       } catch (e) {
         if (!e.ok) return
-        console.error('Error in websocket event', e)
+        console.error('👾 X ws', JSON.stringify(e, Object.getOwnPropertyNames(e)))
       }
     })
   }

@@ -6,7 +6,7 @@ export default () =>
       try {
         req.authorization = jwt.verify(token)
       } catch (e) {
-        console.error('User WS Auth', e)
+        console.error('👾 X user auth', JSON.stringify(e, Object.getOwnPropertyNames(e)))
       }
     })
   }

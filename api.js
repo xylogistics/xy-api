@@ -34,19 +34,11 @@ export default () =>
           agents
             .map((a, i) => (a ? null : agent_defs[i]))
             .filter(a => a)
-            .map(
-              ([
-                agent_external_id,
-                name,
-                app_id,
-                config = {},
-                payload = {}
-              ]) => ({
-                app_id,
-                defaultConfig: { name, agent_external_id, ...config },
-                defaultPayload: payload
-              })
-            )
+            .map(([agent_external_id, name, app_id, config = {}, payload = {}]) => ({
+              app_id,
+              defaultConfig: { name, agent_external_id, ...config },
+              defaultPayload: payload
+            }))
         )
         return await get_all()
       },
@@ -86,19 +78,11 @@ export default () =>
           schemas
             .map((c, i) => (c ? null : schema_defs[i]))
             .filter(c => c)
-            .map(
-              ([
-                schema_external_id,
-                name,
-                applies_to,
-                components,
-                payload = {}
-              ]) => ({
-                applies_to,
-                components,
-                payload: { name, schema_external_id, ...payload }
-              })
-            )
+            .map(([schema_external_id, name, applies_to, components, payload = {}]) => ({
+              applies_to,
+              components,
+              payload: { name, schema_external_id, ...payload }
+            }))
         )
         return await get_all()
       },
@@ -117,21 +101,12 @@ export default () =>
           units
             .map((u, i) => (u ? null : unit_defs[i]))
             .filter(u => u)
-            .map(
-              ([
-                unit_external_id,
-                name,
-                type,
-                schema_id,
-                outer_id = null,
-                payload = {}
-              ]) => ({
-                unit_external_id,
-                schema_id,
-                outer_id,
-                payload: { name, type, ...payload }
-              })
-            )
+            .map(([unit_external_id, name, type, schema_id, outer_id = null, payload = {}]) => ({
+              unit_external_id,
+              schema_id,
+              outer_id,
+              payload: { name, type, ...payload }
+            }))
         )
         return await get_all()
       },
@@ -150,18 +125,11 @@ export default () =>
           locations
             .map((l, i) => (l ? null : location_defs[i]))
             .filter(l => l)
-            .map(
-              ([
-                location_external_id,
-                name,
-                within_location_entry_id = null,
-                payload = {}
-              ]) => ({
-                location_external_id,
-                within_location_entry_id,
-                payload: { name, ...payload }
-              })
-            )
+            .map(([location_external_id, name, within_location_entry_id = null, payload = {}]) => ({
+              location_external_id,
+              within_location_entry_id,
+              payload: { name, ...payload }
+            }))
         )
         return await get_all()
       },
@@ -180,18 +148,11 @@ export default () =>
           entities
             .map((e, i) => (e ? null : entity_defs[i]))
             .filter(e => e)
-            .map(
-              ([
-                entity_external_id,
-                name,
-                within_entity_entry_id = null,
-                payload = {}
-              ]) => ({
-                entity_external_id,
-                within_entity_entry_id,
-                payload: { name, ...payload }
-              })
-            )
+            .map(([entity_external_id, name, within_entity_entry_id = null, payload = {}]) => ({
+              entity_external_id,
+              within_entity_entry_id,
+              payload: { name, ...payload }
+            }))
         )
         return await get_all()
       },
@@ -210,8 +171,7 @@ export default () =>
       },
       // [name, payload = {}]
       assert_outbound_orderstatuses: async status_defs => {
-        const get_all = () =>
-          core_ws_client.call('/outbound_orderstatus/outbound_orderstatus_qry')
+        const get_all = () => core_ws_client.call('/outbound_orderstatus/outbound_orderstatus_qry')
         const statuses1 = await get_all()
         await core_ws_client.call(
           '/outbound_orderstatus/outbound_orderstatus_assert',
@@ -224,10 +184,7 @@ export default () =>
       },
       // [name, payload = {}]
       assert_outbound_orderlinestatuses: async status_defs => {
-        const get_all = () =>
-          core_ws_client.call(
-            '/outbound_orderlinestatus/outbound_orderlinestatus_qry'
-          )
+        const get_all = () => core_ws_client.call('/outbound_orderlinestatus/outbound_orderlinestatus_qry')
         const statuses1 = await get_all()
         await core_ws_client.call(
           '/outbound_orderlinestatus/outbound_orderlinestatus_assert',
@@ -240,8 +197,7 @@ export default () =>
       },
       // [name, payload = {}]
       assert_inbound_orderstatuses: async status_defs => {
-        const get_all = () =>
-          core_ws_client.call('/inbound_orderstatus/inbound_orderstatus_qry')
+        const get_all = () => core_ws_client.call('/inbound_orderstatus/inbound_orderstatus_qry')
         const statuses1 = await get_all()
         await core_ws_client.call(
           '/inbound_orderstatus/inbound_orderstatus_assert',
@@ -254,10 +210,7 @@ export default () =>
       },
       // [name, payload = {}]
       assert_inbound_orderlinestatuses: async status_defs => {
-        const get_all = () =>
-          core_ws_client.call(
-            '/inbound_orderlinestatus/inbound_orderlinestatus_qry'
-          )
+        const get_all = () => core_ws_client.call('/inbound_orderlinestatus/inbound_orderlinestatus_qry')
         const statuses1 = await get_all()
         await core_ws_client.call(
           '/inbound_orderlinestatus/inbound_orderlinestatus_assert',
@@ -283,8 +236,7 @@ export default () =>
       },
       // [name, payload = {}]
       assert_picklinestatuses: async status_defs => {
-        const get_all = () =>
-          core_ws_client.call('/picklinestatus/picklinestatus_qry')
+        const get_all = () => core_ws_client.call('/picklinestatus/picklinestatus_qry')
         const statuses1 = await get_all()
         await core_ws_client.call(
           '/picklinestatus/picklinestatus_assert',
@@ -329,7 +281,7 @@ export default () =>
         try {
           core_ws_client.call('/analytics/track', params)
         } catch (e) {
-          console.error('Track failed', e)
+          console.error('👾 X track', JSON.stringify(e, Object.getOwnPropertyNames(e)))
         }
       }
       // TODO: add assert workers

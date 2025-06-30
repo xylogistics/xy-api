@@ -13,7 +13,7 @@ export default () =>
           })
           return { ok: true }
         } catch (e) {
-          console.error('complete_auth_workflow error', e)
+          console.error('👾 X complete_auth_workflow', JSON.stringify(e, Object.getOwnPropertyNames(e)))
           return { ok: false, status: 500 }
         }
       }

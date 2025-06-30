@@ -11,7 +11,7 @@ export default ({ delayMS = 1000 } = {}) => {
       const expectedVersion = expectedVersions.get(key)
       const currentVersion = currentVersions.get(key) ?? 0
       if (currentVersion < expectedVersion) {
-        console.log('Version debounce: skipping', { key, currentVersion, expectedVersion })
+        console.log('👾 . throttle version', JSON.stringify({ key, currentVersion, expectedVersion }))
         return
       }
       expectedVersions.delete(key)
