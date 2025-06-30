@@ -389,6 +389,7 @@ export default (ws, fn) => {
   const query = async () => {
     if (!ws.is_connected()) return
     if (isquerying) return
+    const start = new Date().getTime()
     try {
       isquerying = true
       let iteration = 0
@@ -486,6 +487,9 @@ export default (ws, fn) => {
       await ws.send('/location/subscribe', { location_ids })
       const item_ids = Array.from(results.items_byid.keys())
       await ws.send('/item/subscribe', { item_ids })
+      const end = new Date().getTime()
+      const duration_ms = end - start
+      if (duration_ms > 100) console.log(`🐢 sync ${duration_ms.toFixed().padStart(5, ' ')}ms`)
     } catch (e) {
       hub.emit('error', e)
       isquerying = false
