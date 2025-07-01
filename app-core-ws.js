@@ -64,7 +64,7 @@ export default ({ app_host_id }) =>
     relay('disconnected', 'disconnected')
 
     hub.on('agent connected', async ({ agent }) => {
-      if (!core_ws_client.is_connected) return
+      if (!core_ws_client.is_connected()) return
       core_ws_client.call('/app/agents_connected', [
         {
           agent_id: agent.agent_id,
@@ -74,7 +74,7 @@ export default ({ app_host_id }) =>
     })
 
     hub.on('agent disconnected', async ({ agent }) => {
-      if (!core_ws_client.is_connected) return
+      if (!core_ws_client.is_connected()) return
       core_ws_client.call('/app/agents_connected', [
         {
           agent_id: agent.agent_id,
@@ -83,8 +83,21 @@ export default ({ app_host_id }) =>
       ])
     })
 
+    let connectionInterval = setInterval(async () => {
+      if (!app.socket_byagentid || !core_ws_client.is_connected()) return
+      hub.emit(
+        'agents_connected',
+        app.agents().map(a => ({
+          agent_id: a.agent_id,
+          is_connected: app.socket_byagentid(a.agent_id)
+        }))
+      )
+    }, 30000)
+
     hub.on('close', async () => {
-      core_ws_client.close()
+      if (!connectionInterval) return
+      clearInterval(connectionInterval)
+      connectionInterval = null
     })
 
     return { core_ws_client }
