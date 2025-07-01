@@ -4,7 +4,7 @@ import { backOff } from 'exponential-backoff'
 
 export default ({ app_host_api, app_host_auth_token }) =>
   async ({ app_name, app, hub }) => {
-    console.log(`👾 . ${app_name} app host -> ${app_host_api}`)
+    console.log(`👾 . ${app_name} host -> ${app_host_api}`)
     const app_host_ws_client = createClient({
       url: app_host_api.replace(/^http/, 'ws'),
       wsOptions: {
@@ -42,12 +42,12 @@ export default ({ app_host_api, app_host_auth_token }) =>
         numOfAttempts: Number.MAX_SAFE_INTEGER,
         maxDelay: 10000,
         retry: e => {
-          console.error(`👾 X ${app_name} app host`, JSON.stringify(e, Object.getOwnPropertyNames(e)))
+          console.error(`👾 X ${app_name} host`, JSON.stringify(e, Object.getOwnPropertyNames(e)))
           return app_host_ws_client.is_connected()
         }
       })
 
-      console.log(`👾 √ ${app_name} app host`)
+      console.log(`👾 √ ${app_name} host`)
 
       hub.on('shutdown', async () => {
         app_host_ws_client.close()
