@@ -2,7 +2,7 @@
 import { createClient } from 'xy-websocket'
 import { backOff } from 'exponential-backoff'
 
-export default ({ app_host_id }) =>
+export default ({ app_host_id, call_timeout }) =>
   async ({ app_name = 'XY App', hub, app }) => {
     console.log(`👾 . ${app_name} app -> ${app.connect_url}`)
     const core_ws_client = createClient({
@@ -13,7 +13,8 @@ export default ({ app_host_id }) =>
           req.end()
         },
         followRedirects: true
-      }
+      },
+      call_timeout
     })
     app.core_ws_client = core_ws_client
     core_ws_client.on('connected', async () => {
