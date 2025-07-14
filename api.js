@@ -1,3 +1,5 @@
+import short from 'short-uuid'
+
 export default () =>
   async ({ core_ws_client }) => {
     const xyapi = {
@@ -276,6 +278,70 @@ export default () =>
         )
         const types2 = await get_all()
         return type_defs.map(([name]) => types2.find(t => t.name === name))
+      },
+      // [grouppermission_external_id, name, payload = {}]
+      assert_grouppermissions: async permission_defs => {
+        const allpermissions = await core_ws_client.call('/user/grouppermissions_all')
+        const permissionstocreate = permission_defs.filter(
+          ([id]) => !allpermissions.find(p => p.grouppermission_external_id === id)
+        )
+        await core_ws_client.call(
+          '/user/grouppermissions_assert',
+          permissionstocreate.map(([grouppermission_external_id, name, payload = {}]) => ({
+            grouppermission_external_id,
+            payload: { name, ...payload }
+          }))
+        )
+        const allpermissions2 = await core_ws_client.call('/user/grouppermissions_all')
+        return permission_defs.map(([id]) => allpermissions2.find(p => p.grouppermission_external_id === id))
+      },
+      // [usergroup_external_id, name, permissions = [], payload = {}]
+      assert_usergroups: async group_defs => {
+        const allgroups = await core_ws_client.call('/user/usergroups_all')
+        const groupstocreate = group_defs.filter(([id]) => !allgroups.find(g => g.usergroup_external_id === id))
+        await core_ws_client.call(
+          '/user/usergroups_assert',
+          groupstocreate.map(([usergroup_external_id, name, _, payload = {}]) => ({
+            usergroup_external_id,
+            payload: { name, ...payload }
+          }))
+        )
+        const allgroups2 = await core_ws_client.call('/user/usergroups_all')
+        const allpermissions = await core_ws_client.call('/user/grouppermissions_all')
+        const allaccess = await core_ws_client.call('/user/groupaccess_all')
+        const accesstocreate = []
+        const result = []
+        for (const [usergroup_external_id, _, permissions = []] of group_defs) {
+          const g = allgroups2.find(g => g.usergroup_external_id === usergroup_external_id)
+          result.push(g)
+          if (permissions.length == 0) continue
+          for (const grouppermission_external_id of permissions) {
+            const p = allpermissions.find(p => p.grouppermission_external_id === grouppermission_external_id)
+            if (!p) continue
+            const a = allaccess.find(
+              a =>
+                a.usergroup_external_id === g.usergroup_external_id &&
+                a.grouppermission_external_id === p.grouppermission_external_id
+            )
+            if (a) continue
+            accesstocreate.push({
+              usergroup_id: g.usergroup_id,
+              grouppermission_id: p.grouppermission_id
+            })
+          }
+        }
+
+        await core_ws_client.call('/user/groupaccess_change', {
+          deleted_ids: [],
+          created_entries: accesstocreate.map(({ usergroup_id, grouppermission_id }) => ({
+            usergroup_permission_link_id: short.generate(),
+            usergroup_id,
+            grouppermission_id,
+            payload: {}
+          }))
+        })
+
+        return result
       },
       track: params => {
         try {
