@@ -12,9 +12,9 @@ export default () =>
     app.sockets_byuserid = user_id => [...usersockets_byid.get(user_id)]
     app.sockets = () => Array.from(usersockets_byid.values(), s => [...s]).flat()
 
-    user_ws_shim.register('/user/register', (_, socket) => {
+    user_ws_shim.register('/user/register', async (_, socket) => {
       const user_id = socket.request.authorization?.user_id
       socket.on('close', () => hub.emit('user disconnected', { user_id, socket }))
-      hub.emit('user connected', { user_id, socket })
+      await hub.emit('user connected', { user_id, socket })
     })
   }
