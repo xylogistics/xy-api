@@ -1,6 +1,6 @@
 import cookies from 'cookies'
 
-export default cookieSecret =>
+export default ({ cookieSecret }) =>
   async ({ httpServer, jwt }) => {
     httpServer.on('upgrade', req => {
       try {
